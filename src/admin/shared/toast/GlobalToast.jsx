@@ -24,10 +24,27 @@ export default function GlobalToast() {
   )
 
   return (
-    <div className="fixed bottom-6 right-6 z-[60]">
-      <div className={`${color} text-white px-4 py-3 rounded-md shadow-lg min-w-64 max-w-sm flex items-center justify-between gap-4`}>
-        <span className="text-sm">{toast.message}</span>
-        <button className="text-white/80 hover:text-white text-sm" onClick={() => setToast({ ...toast, visible: false })}>×</button>
+    <div className="fixed bottom-6 right-6 z-[60] animate-in slide-in-from-bottom-5 fade-in duration-300">
+      <div className={`${color} text-white px-5 py-4 rounded-lg shadow-2xl min-w-80 max-w-md flex items-center justify-between gap-4 border border-white/20`}>
+        <div className="flex items-center gap-3 flex-1">
+          {toast.type === 'success' && (
+            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          )}
+          {toast.type === 'error' && (
+            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          )}
+          <span className="text-sm font-medium">{toast.message}</span>
+        </div>
+        <button 
+          className="text-white/80 hover:text-white transition text-lg font-bold leading-none" 
+          onClick={() => setToast({ ...toast, visible: false })}
+        >
+          ×
+        </button>
       </div>
     </div>
   )

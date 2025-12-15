@@ -28,7 +28,7 @@ export default function AdminHeader({ setIsSidebarOpen, isSidebarOpen }) {
         <button
           onClick={() => setIsSidebarOpen(!isSidebarOpen)}
           className="p-2 rounded-md hover:bg-blue-200 text-blue-800 transition"
-          title={isSidebarOpen ? "Đóng sidebar" : "Mở sidebar"}
+          title={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
         >
           <Bars3Icon className="w-6 h-6" />
         </button>
@@ -55,19 +55,19 @@ export default function AdminHeader({ setIsSidebarOpen, isSidebarOpen }) {
                   className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 rounded-t-md"
                   onClick={() => setUserMenuOpen(false)}
                 >
-                  Hồ sơ cá nhân
+                  Profile
                 </button>
                 <button
                   className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
                   onClick={() => setUserMenuOpen(false)}
                 >
-                  Cài đặt
+                  Settings
                 </button>
                 <button
                   className="block w-full text-left px-4 py-2 text-sm hover:bg-red-50 text-red-600 rounded-b-md"
 
                 >
-                  Đăng xuất
+                  Logout
                 </button>
               </div>
             )}

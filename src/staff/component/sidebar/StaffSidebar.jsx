@@ -1,60 +1,194 @@
+import { useState } from "react";
 import {
   HomeIcon,
-  ClipboardDocumentListIcon,
-  CubeIcon,
-  UserGroupIcon,
-  Cog6ToothIcon,
-  ArrowRightOnRectangleIcon,
   FolderIcon,
-  ChartBarIcon,
-  BuildingStorefrontIcon,
   TruckIcon,
-  UserCircleIcon,
-  BanknotesIcon,
-  GiftIcon,
   ClipboardDocumentCheckIcon,
+  CalendarDaysIcon,
+  MapIcon,
+  UserCircleIcon,
+  ArrowPathIcon,
+  DocumentTextIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  BuildingOfficeIcon,
+  MapPinIcon,
+  CalendarIcon,
+  StarIcon,
+  PaperAirplaneIcon,
 } from "@heroicons/react/24/outline";
-import logo from "../../../assets/logo.png";
+import { TypeIcon } from "lucide-react";
+import logo from "../../../assets/img/logo.png";
+
 export default function StaffSidebar({ isOpen, activeTab, setActiveTab }) {
-  const navItems = [
-    { id: "dashboard", name: "Tổng quan", icon: HomeIcon },
-    
+  // State để quản lý các nhóm mở/đóng
+  const [openGroups, setOpenGroups] = useState({
+    tour: true,
+    vehicle: true,
+    hotel: true,
+    operations: true,
+    schedule: true,
+  });
+
+  const toggleGroup = (groupKey) => {
+    setOpenGroups((prev) => ({
+      ...prev,
+      [groupKey]: !prev[groupKey],
+    }));
+  };
+
+  const navGroups = [
+    {
+      key: "overview",
+      title: "Overview",
+      collapsible: false,
+      items: [
+        { id: "dashboard", name: "Dashboard", icon: HomeIcon },
+      ],
+    },
+    {
+      key: "tour",
+      title: "Tour Management",
+      collapsible: true,
+      items: [
+        { id: "categoriesTour", name: "Categories", icon: FolderIcon },
+        { id: "seasons", name: "Seasons", icon: CalendarDaysIcon },
+        { id: "cities", name: "Cities", icon: BuildingOfficeIcon },
+        { id: "attractions", name: "Attractions", icon: MapPinIcon },
+        { id: "tours", name: "Tours", icon: MapIcon },
+        { id: "tourSchedules", name: "Tour Schedules", icon: CalendarIcon },
+      ],
+    },
+    {
+      key: "vehicle",
+      title: "Vehicle Management",
+      collapsible: true,
+      items: [
+        { id: "carTypes", name: "Car Types", icon: TypeIcon },
+        { id: "cars", name: "Cars", icon: TruckIcon },
+        { id: "flights", name: "Flights", icon: PaperAirplaneIcon },
+      ],
+    },
+    {
+      key: "hotel",
+      title: "Hotel Management",
+      collapsible: true,
+      items: [
+        { id: "hotels", name: "Hotels", icon: BuildingOfficeIcon },
+        { id: "hotelAmenities", name: "Amenities", icon: StarIcon },
+        { id: "nearbyAttractions", name: "Nearby Attractions", icon: MapPinIcon },
+      ],
+    },
+    {
+      key: "operations",
+      title: "Operations",
+      collapsible: true,
+      items: [
+        { id: "bookings", name: "Bookings", icon: ClipboardDocumentCheckIcon },
+        { id: "refunds", name: "Refunds", icon: ArrowPathIcon },
+        { id: "invoices", name: "Invoices", icon: DocumentTextIcon },
+      ],
+    },
+    {
+      key: "account",
+      title: "Account",
+      collapsible: false,
+      items: [
+        { id: "profile", name: "Profile", icon: UserCircleIcon },
+      ],
+    },
   ];
 
   return (
     <aside
-      className={`${isOpen ? "translate-x-0" : "-translate-x-full"
-        } fixed top-0 left-0 z-40 h-full w-64 bg-white text-green-900 border-r border-gray-200 shadow-sm transform transition-transform duration-300`}
+      className={`${
+        isOpen ? "translate-x-0" : "-translate-x-full"
+      } fixed top-0 left-0 z-40 h-full w-72 bg-white text-neutral-900 
+         border-r border-neutral-200 shadow-xl transform transition-transform duration-300 overflow-y-auto`}
     >
-      {/* Logo */}
-      <div className="h-16 px-4 flex items-center bg-white border-b border-gray-200">
-        <img src={logo} alt="logo" className="h-40 w-40" />
+      {/* Logo Section */}
+      <div className="h-20 px-6 flex items-center justify-between bg-gradient-to-r from-primary-50 to-accent-50 border-b border-primary-200">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-md ring-2 ring-primary-100">
+            <span className="text-white font-bold text-lg">S</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-sm font-bold text-neutral-900">Staff Portal</span>
+            <span className="text-xs text-neutral-600 font-medium">Management System</span>
+          </div>
+        </div>
       </div>
 
       {/* Navigation */}
-      <nav className="mt-4">
-        <ul className="space-y-1">
-          {navItems.map((item) => (
-            <li key={item.id}>
-              <button
-                onClick={() => setActiveTab(item.id)}
-                className={`w-full flex items-center px-5 py-2.5 text-sm font-medium rounded-md transition-all duration-200
-                  ${activeTab === item.id
-                    ? "bg-green-200 text-green-900 font-semibold"
-                    : "bg-white text-green-900 hover:bg-green-50"
+      <nav className="px-4 py-6 space-y-5 bg-white">
+        {navGroups.map((group) => {
+          const isGroupOpen = !group.collapsible || openGroups[group.key];
+          const hasActiveItem = group.items.some((item) => activeTab === item.id);
+
+          return (
+            <div key={group.key}>
+              {/* Group Header */}
+              {group.collapsible ? (
+                <button
+                  onClick={() => toggleGroup(group.key)}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 mb-2 rounded-lg transition-all duration-200 ${
+                    hasActiveItem
+                      ? "bg-primary-50 text-primary-700 border border-primary-200 shadow-sm"
+                      : "text-neutral-600 hover:text-primary-700 hover:bg-primary-50/50"
                   }`}
-              >
-                <item.icon
-                  className={`w-5 h-5 mr-3 ${activeTab === item.id ? "text-green-800" : "text-green-700"
-                    }`}
-                />
-                {item.name}
-              </button>
-            </li>
-          ))}
-        </ul>
+                >
+                  <h3 className="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                    {isGroupOpen ? (
+                      <ChevronDownIcon className="w-4 h-4" />
+                    ) : (
+                      <ChevronRightIcon className="w-4 h-4" />
+                    )}
+                    {group.title}
+                  </h3>
+                </button>
+              ) : (
+                <h3 className="px-3 mb-2 text-xs font-bold text-neutral-500 uppercase tracking-wider">
+                  {group.title}
+                </h3>
+              )}
+
+              {/* Group Items */}
+              {isGroupOpen && (
+                <ul className="space-y-1">
+                  {group.items.map((item) => {
+                    const isActive = activeTab === item.id;
+                    return (
+                      <li key={item.id}>
+                        <button
+                          onClick={() => setActiveTab(item.id)}
+                          className={`w-full flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200
+                            ${
+                              isActive
+                                ? "bg-gradient-to-r from-primary-600 to-primary-500 text-white shadow-md shadow-primary-500/40"
+                                : "text-neutral-700 hover:bg-primary-50 hover:text-primary-700"
+                            }`}
+                        >
+                          <item.icon
+                            className={`w-5 h-5 mr-3 transition-transform ${
+                              isActive
+                                ? "text-white"
+                                : "text-neutral-500 group-hover:text-primary-600"
+                            } ${isActive ? "scale-110" : ""}`}
+                          />
+                          <span className="flex-1 text-left">{item.name}</span>
+                          {isActive && (
+                            <div className="w-1.5 h-1.5 rounded-full bg-white ml-auto"></div>
+                          )}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          );
+        })}
       </nav>
     </aside>
   );
 }
-

@@ -1,421 +1,405 @@
-
-import { Fragment, useState } from 'react'
+import { Fragment, useState, useEffect } from 'react'
 import {
     Dialog,
     DialogBackdrop,
     DialogPanel,
     Popover,
     PopoverButton,
-    PopoverGroup,
     PopoverPanel,
-    Tab,
-    TabGroup,
-    TabList,
-    TabPanel,
-    TabPanels,
 } from '@headlessui/react'
-import { Bars3Icon, MagnifyingGlassIcon, ShoppingBagIcon, XMarkIcon } from '@heroicons/react/24/outline'
+import {
+    Bars3Icon, MagnifyingGlassIcon, UserCircleIcon, XMarkIcon, ClipboardDocumentListIcon, HomeIcon,
+    GlobeAmericasIcon,
+    TruckIcon,
+    BuildingOfficeIcon,
+    PaperAirplaneIcon,
+    InformationCircleIcon
+} from '@heroicons/react/24/outline'
+import { Navigate } from 'react-router-dom';
+import { useNavigate } from "react-router-dom";
+import { getCurrentUser, isAuthenticated, logout } from '../../../services/common/authService';
+import logo from '../../../assets/img/logo.png';
+
+
+
+
 
 const navigation = {
-    categories: [
-        {
-            id: 'women',
-            name: 'Women',
-            featured: [
-                {
-                    name: 'New Arrivals',
-                    href: '#',
-                    imageSrc: 'https://tailwindcss.com/plus-assets/img/ecommerce-images/mega-menu-category-01.jpg',
-                    imageAlt: 'Models sitting back to back, wearing Basic Tee in black and bone.',
-                },
-                {
-                    name: 'Basic Tees',
-                    href: '#',
-                    imageSrc: 'https://tailwindcss.com/plus-assets/img/ecommerce-images/mega-menu-category-02.jpg',
-                    imageAlt: 'Close up of Basic Tee fall bundle with off-white, ochre, olive, and black tees.',
-                },
-            ],
-            sections: [
-                {
-                    id: 'clothing',
-                    name: 'Clothing',
-                    items: [
-                        { name: 'Tops', href: '#' },
-                        { name: 'Dresses', href: '#' },
-                        { name: 'Pants', href: '#' },
-                        { name: 'Denim', href: '#' },
-                        { name: 'Sweaters', href: '#' },
-                        { name: 'T-Shirts', href: '#' },
-                        { name: 'Jackets', href: '#' },
-                        { name: 'Activewear', href: '#' },
-                        { name: 'Browse All', href: '#' },
-                    ],
-                },
-                {
-                    id: 'accessories',
-                    name: 'Accessories',
-                    items: [
-                        { name: 'Watches', href: '#' },
-                        { name: 'Wallets', href: '#' },
-                        { name: 'Bags', href: '#' },
-                        { name: 'Sunglasses', href: '#' },
-                        { name: 'Hats', href: '#' },
-                        { name: 'Belts', href: '#' },
-                    ],
-                },
-                {
-                    id: 'brands',
-                    name: 'Brands',
-                    items: [
-                        { name: 'Full Nelson', href: '#' },
-                        { name: 'My Way', href: '#' },
-                        { name: 'Re-Arranged', href: '#' },
-                        { name: 'Counterfeit', href: '#' },
-                        { name: 'Significant Other', href: '#' },
-                    ],
-                },
-            ],
-        },
-        {
-            id: 'men',
-            name: 'Men',
-            featured: [
-                {
-                    name: 'New Arrivals',
-                    href: '#',
-                    imageSrc:
-                        'https://tailwindcss.com/plus-assets/img/ecommerce-images/product-page-04-detail-product-shot-01.jpg',
-                    imageAlt: 'Drawstring top with elastic loop closure and textured interior padding.',
-                },
-                {
-                    name: 'Artwork Tees',
-                    href: '#',
-                    imageSrc: 'https://tailwindcss.com/plus-assets/img/ecommerce-images/category-page-02-image-card-06.jpg',
-                    imageAlt:
-                        'Three shirts in gray, white, and blue arranged on table with same line drawing of hands and shapes overlapping on front of shirt.',
-                },
-            ],
-            sections: [
-                {
-                    id: 'clothing',
-                    name: 'Clothing',
-                    items: [
-                        { name: 'Tops', href: '#' },
-                        { name: 'Pants', href: '#' },
-                        { name: 'Sweaters', href: '#' },
-                        { name: 'T-Shirts', href: '#' },
-                        { name: 'Jackets', href: '#' },
-                        { name: 'Activewear', href: '#' },
-                        { name: 'Browse All', href: '#' },
-                    ],
-                },
-                {
-                    id: 'accessories',
-                    name: 'Accessories',
-                    items: [
-                        { name: 'Watches', href: '#' },
-                        { name: 'Wallets', href: '#' },
-                        { name: 'Bags', href: '#' },
-                        { name: 'Sunglasses', href: '#' },
-                        { name: 'Hats', href: '#' },
-                        { name: 'Belts', href: '#' },
-                    ],
-                },
-                {
-                    id: 'brands',
-                    name: 'Brands',
-                    items: [
-                        { name: 'Re-Arranged', href: '#' },
-                        { name: 'Counterfeit', href: '#' },
-                        { name: 'Full Nelson', href: '#' },
-                        { name: 'My Way', href: '#' },
-                    ],
-                },
-            ],
-        },
-    ],
     pages: [
-        { name: 'Company', href: '#' },
-        { name: 'Stores', href: '#' },
+        { name: "Home", href: "/", icon: HomeIcon },
+        { name: "Tour", href: "/tours", icon: GlobeAmericasIcon },
+        { name: "Car Rental", href: "/cars", icon: TruckIcon },
+        { name: "Hotel", href: "/hotels", icon: BuildingOfficeIcon },
+        { name: "Flights", href: "/flights", icon: PaperAirplaneIcon },
+        { name: "Bookings", href: "#", icon: ClipboardDocumentListIcon },
+        { name: "Contact", href: "/contact", icon: InformationCircleIcon },
     ],
+};
+
+
+
+const LANGUAGES = {
+    vi: {
+        code: "VI",
+        flag: "https://flagcdn.com/w20/vn.png",
+    },
+    en: {
+        code: "EN",
+        flag: "https://flagcdn.com/w20/gb.png",
+    },
 }
 
 export default function Navigation() {
+    const navigate = useNavigate();
     const [open, setOpen] = useState(false)
+    const [language, setLanguage] = useState("vi")
+    const [user, setUser] = useState(null)
+    const [isLoggedIn, setIsLoggedIn] = useState(false)
+
+    useEffect(() => {
+        const checkAuth = () => {
+            const currentUser = getCurrentUser();
+            setUser(currentUser);
+            setIsLoggedIn(isAuthenticated());
+        };
+        
+        checkAuth();
+        
+        // Listen for storage changes (khi logout từ component khác hoặc login)
+        const handleStorageChange = (e) => {
+            if (e.key === 'token' || e.key === 'user') {
+                checkAuth();
+            }
+        };
+        
+        // Listen for custom event khi login thành công
+        const handleLoginSuccess = () => {
+            checkAuth();
+        };
+        
+        window.addEventListener('storage', handleStorageChange);
+        window.addEventListener('userLogin', handleLoginSuccess);
+        
+        // Check lại mỗi khi component được focus (khi navigate về)
+        const handleFocus = () => {
+            checkAuth();
+        };
+        window.addEventListener('focus', handleFocus);
+        
+        return () => {
+            window.removeEventListener('storage', handleStorageChange);
+            window.removeEventListener('userLogin', handleLoginSuccess);
+            window.removeEventListener('focus', handleFocus);
+        };
+    }, []);
+
+    const handleLogout = () => {
+        logout();
+        setUser(null);
+        setIsLoggedIn(false);
+        navigate('/');
+    }
 
     return (
         <div className="w-full bg-white">
             {/* Mobile menu */}
             <Dialog open={open} onClose={setOpen} className="relative z-40 lg:hidden">
-                <DialogBackdrop
-                    transition
-                    className="fixed inset-0 bg-black/25 transition-opacity duration-300 ease-linear data-[closed]:opacity-0"
-                />
+                <DialogBackdrop className="fixed inset-0 bg-black/25" />
+
                 <div className="fixed inset-0 z-40 flex">
-                    <DialogPanel
-                        transition
-                        className="relative flex w-full max-w-xs transform flex-col overflow-y-auto bg-white pb-12 shadow-xl transition duration-300 ease-in-out data-[closed]:-translate-x-full"
-                    >
-                        <div className="flex px-4 pb-2 pt-5">
+                    <DialogPanel className="relative flex w-full max-w-xs flex-col overflow-y-auto bg-white pb-12 shadow-xl">
+
+                        {/* Close */}
+                        <div className="flex justify-end px-4 pb-2 pt-5">
                             <button
                                 type="button"
                                 onClick={() => setOpen(false)}
-                                className="relative -m-2 inline-flex items-center justify-center rounded-md p-2 text-gray-400"
+                                className="inline-flex rounded-md p-2 text-gray-400"
                             >
-                                <span className="absolute -inset-0.5" />
-                                <span className="sr-only">Close menu</span>
-                                <XMarkIcon aria-hidden="true" className="size-6" />
+                                <XMarkIcon className="w-6 h-6" />
                             </button>
                         </div>
 
-                        {/* Links */}
-                        <TabGroup className="mt-2">
-                            <div className="border-b border-gray-200">
-                                <TabList className="-mb-px flex space-x-8 px-4">
-                                    {navigation.categories.map((category) => (
-                                        <Tab
-                                            key={category.name}
-                                            className="flex-1 whitespace-nowrap border-b-2 border-transparent px-1 py-4 text-base font-medium text-gray-900 data-[selected]:border-indigo-600 data-[selected]:text-indigo-600"
-                                        >
-                                            {category.name}
-                                        </Tab>
-                                    ))}
-                                </TabList>
-                            </div>
-                            <TabPanels as={Fragment}>
-                                {navigation.categories.map((category) => (
-                                    <TabPanel key={category.name} className="space-y-10 px-4 pb-8 pt-10">
-                                        <div className="grid grid-cols-2 gap-x-4">
-                                            {category.featured.map((item) => (
-                                                <div key={item.name} className="group relative text-sm">
-                                                    <img
-                                                        alt={item.imageAlt}
-                                                        src={item.imageSrc}
-                                                        className="aspect-square w-full rounded-lg bg-gray-100 object-cover group-hover:opacity-75"
-                                                    />
-                                                    <a href={item.href} className="mt-6 block font-medium text-gray-900">
-                                                        <span aria-hidden="true" className="absolute inset-0 z-10" />
-                                                        {item.name}
-                                                    </a>
-                                                    <p aria-hidden="true" className="mt-1">
-                                                        Shop now
-                                                    </p>
-                                                </div>
-                                            ))}
-                                        </div>
-                                        {category.sections.map((section) => (
-                                            <div key={section.name}>
-                                                <p id={`${category.id}-${section.id}-heading-mobile`} className="font-medium text-gray-900">
-                                                    {section.name}
-                                                </p>
-                                                <ul
-                                                    role="list"
-                                                    aria-labelledby={`${category.id}-${section.id}-heading-mobile`}
-                                                    className="mt-6 flex flex-col space-y-6"
-                                                >
-                                                    {section.items.map((item) => (
-                                                        <li key={item.name} className="flow-root">
-                                                            <a href={item.href} className="-m-2 block p-2 text-gray-500">
-                                                                {item.name}
-                                                            </a>
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            </div>
-                                        ))}
-                                    </TabPanel>
-                                ))}
-                            </TabPanels>
-                        </TabGroup>
-
-                        <div className="space-y-6 border-t border-gray-200 px-4 py-6">
+                        {/* Mobile Pages */}
+                        <div className="border-t border-gray-200 px-4 py-6 space-y-4">
                             {navigation.pages.map((page) => (
-                                <div key={page.name} className="flow-root">
-                                    <a href={page.href} className="-m-2 block p-2 font-medium text-gray-900">
-                                        {page.name}
-                                    </a>
-                                </div>
+                                <a key={page.name} href={page.href} className="group flex items-center text-lg font-semibold text-gray-700 hover:text-primary-600">
+                                    <page.icon className="w-6 h-6 mr-2 " />
+                                    {page.name}
+                                </a>
                             ))}
+
                         </div>
 
-                        <div className="space-y-6 border-t border-gray-200 px-4 py-6">
-                            <div className="flow-root">
-                                <a href="#" className="-m-2 block p-2 font-medium text-gray-900">
+                        {/* Search */}
+                        <div className="border-t border-gray-200 px-4 py-6">
+                            <a
+                                href="/search"
+                                className="flex items-center text-gray-700 hover:text-primary-600 text-base"
+                            >
+                                <MagnifyingGlassIcon className="w-6 h-6 mr-2" />
+                                Search
+                            </a>
+                        </div>
+
+                        {/* Language Selector */}
+                        <div className="border-t border-gray-200 px-4 py-6 space-y-4">
+                            <p className="text-sm font-semibold text-gray-700">Language</p>
+
+                            <button
+                                onClick={() => setLanguage("vi")}
+                                className="flex items-center w-full px-3 py-2 rounded-md hover:bg-neutral-100"
+                            >
+                                <img src={LANGUAGES.vi.flag} className="w-6 h-4 rounded-sm" />
+                                <span className="ml-2">VI</span>
+                            </button>
+
+                            <button
+                                onClick={() => setLanguage("en")}
+                                className="flex items-center w-full px-3 py-2 rounded-md hover:bg-neutral-100"
+                            >
+                                <img src={LANGUAGES.en.flag} className="w-6 h-4 rounded-sm" />
+                                <span className="ml-2">EN</span>
+                            </button>
+                        </div>
+
+                        {/* Profile */}
+                        <div className="border-t border-gray-200 px-4 py-6 space-y-4">
+                            <p className="text-sm font-semibold text-gray-700">Account</p>
+
+                            <a href="#" className="flex items-center px-3 py-2 rounded-md hover:bg-neutral-100">
+                                <UserCircleIcon className="w-6 h-6 mr-2" />
+                                My Profile
+                            </a>
+
+                            <a href="#" className="flex items-center px-3 py-2 rounded-md hover:bg-neutral-100">
+                                <ClipboardDocumentListIcon className="w-6 h-6 mr-2" />
+                                Bookings
+                            </a>
+
+                            <a href="#" className="flex items-center px-3 py-2 rounded-md hover:bg-neutral-100">
+                                Service History
+                            </a>
+
+                            <a href="#" className="flex items-center px-3 py-2 rounded-md hover:bg-neutral-100">
+                                Settings
+                            </a>
+
+                            <a href="#" className="flex items-center px-3 py-2 rounded-md text-red-600 hover:bg-neutral-100">
+                                Logout
+                            </a>
+                        </div>
+
+                        {/* Auth */}
+                        {isLoggedIn && user ? (
+                            <div className="border-t border-gray-200 px-4 py-6 space-y-4">
+                                <p className="text-base font-medium text-primary-600">
+                                    Hello, {user.username}
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="border-t border-gray-200 px-4 py-6 space-y-4">
+                                <a href="/login" className="block text-base font-medium text-gray-900 hover:text-primary-600">
                                     Sign in
                                 </a>
-                            </div>
-                            <div className="flow-root">
-                                <a href="#" className="-m-2 block p-2 font-medium text-gray-900">
+                                <a href="/register" className="block text-base font-medium text-gray-900 hover:text-primary-600">
                                     Create account
                                 </a>
                             </div>
-                        </div>
-
-                        <div className="border-t border-gray-200 px-4 py-6">
-                            <a href="#" className="-m-2 flex items-center p-2">
-                                <img
-                                    alt=""
-                                    src="https://tailwindcss.com/plus-assets/img/flags/flag-canada.svg"
-                                    className="block h-auto w-5 shrink-0"
-                                />
-                                <span className="ml-3 block text-base font-medium text-gray-900">CAD</span>
-                                <span className="sr-only">, change currency</span>
-                            </a>
-                        </div>
+                        )}
                     </DialogPanel>
                 </div>
             </Dialog>
 
-            <header className="relative bg-white">
-           
 
-                <nav aria-label="Top" className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+
+            {/* Desktop */}
+            <header className="fixed top-0 left-0 w-full z-50 bg-white shadow-sm">
+                <nav className="w-full px-4 sm:px-6 lg:px-8" aria-label="Top">
                     <div className="border-b border-gray-200">
                         <div className="flex h-16 items-center">
+                            {/* Mobile button */}
                             <button
                                 type="button"
                                 onClick={() => setOpen(true)}
-                                className="relative rounded-md bg-white p-2 text-gray-400 lg:hidden"
+                                className="rounded-md bg-white p-2 text-gray-400 lg:hidden"
                             >
-                                <span className="absolute -inset-0.5" />
-                                <span className="sr-only">Open menu</span>
-                                <Bars3Icon aria-hidden="true" className="size-6" />
+                                <Bars3Icon className="size-6" />
                             </button>
 
                             {/* Logo */}
                             <div className="ml-4 flex lg:ml-0">
                                 <a href="#">
-                                    <span className="sr-only">Your Company</span>
                                     <img
-                                        alt=""
-                                        src="https://tailwindcss.com/plus-assets/img/logos/mark.svg?color=indigo&shade=600"
-                                        className="h-8 w-auto"
+                                        src={logo}
+                                        alt="Logo"
+                                        className="h-14 w-14 rounded-full object-cover drop-shadow-xl border-2 border-primary-500"
                                     />
                                 </a>
                             </div>
 
-                            {/* Flyout menus */}
-                            <PopoverGroup className="hidden lg:ml-8 lg:block lg:self-stretch">
-                                <div className="flex h-full space-x-8">
-                                    {navigation.categories.map((category) => (
-                                        <Popover key={category.name} className="flex">
-                                            <div className="relative flex">
-                                                <PopoverButton className="group relative flex items-center justify-center text-sm font-medium text-gray-700 transition-colors duration-200 ease-out hover:text-gray-800 data-[open]:text-indigo-600">
-                                                    {category.name}
-                                                    <span
-                                                        aria-hidden="true"
-                                                        className="absolute inset-x-0 -bottom-px z-30 h-0.5 transition duration-200 ease-out group-data-[open]:bg-indigo-600"
-                                                    />
-                                                </PopoverButton>
-                                            </div>
-                                            <PopoverPanel
-                                                transition
-                                                className="absolute inset-x-0 top-full z-20 w-full bg-white text-sm text-gray-500 transition data-[closed]:opacity-0 data-[enter]:duration-200 data-[leave]:duration-150 data-[enter]:ease-out data-[leave]:ease-in"
-                                            >
-                                                {/* Presentational element used to render the bottom shadow, if we put the shadow on the actual panel it pokes out the top, so we use this shorter element to hide the top of the shadow */}
-                                                <div aria-hidden="true" className="absolute inset-0 top-1/2 bg-white shadow" />
-                                                <div className="relative bg-white">
-                                                    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                                                        <div className="grid grid-cols-2 gap-x-8 gap-y-10 py-16">
-                                                            <div className="col-start-2 grid grid-cols-2 gap-x-8">
-                                                                {category.featured.map((item) => (
-                                                                    <div key={item.name} className="group relative text-base sm:text-sm">
-                                                                        <img
-                                                                            alt={item.imageAlt}
-                                                                            src={item.imageSrc}
-                                                                            className="aspect-square w-full rounded-lg bg-gray-100 object-cover group-hover:opacity-75"
-                                                                        />
-                                                                        <a href={item.href} className="mt-6 block font-medium text-gray-900">
-                                                                            <span aria-hidden="true" className="absolute inset-0 z-10" />
-                                                                            {item.name}
-                                                                        </a>
-                                                                        <p aria-hidden="true" className="mt-1">
-                                                                            Shop now
-                                                                        </p>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                            <div className="row-start-1 grid grid-cols-3 gap-x-8 gap-y-10 text-sm">
-                                                                {category.sections.map((section) => (
-                                                                    <div key={section.name}>
-                                                                        <p id={`${section.name}-heading`} className="font-medium text-gray-900">
-                                                                            {section.name}
-                                                                        </p>
-                                                                        <ul
-                                                                            role="list"
-                                                                            aria-labelledby={`${section.name}-heading`}
-                                                                            className="mt-6 space-y-6 sm:mt-4 sm:space-y-4"
-                                                                        >
-                                                                            {section.items.map((item) => (
-                                                                                <li key={item.name} className="flex">
-                                                                                    <a href={item.href} className="hover:text-gray-800">
-                                                                                        {item.name}
-                                                                                    </a>
-                                                                                </li>
-                                                                            ))}
-                                                                        </ul>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </PopoverPanel>
-                                        </Popover>
-                                    ))}
+
+
+                            {/* Desktop Navigation */}
+                            <div className="hidden lg:block lg:ml-8">
+                                <div className="flex items-center space-x-8">
                                     {navigation.pages.map((page) => (
-                                        <a
-                                            key={page.name}
-                                            href={page.href}
-                                            className="flex items-center text-sm font-medium text-gray-700 hover:text-gray-800"
-                                        >
+                                        <a key={page.name} href={page.href} className="flex items-center text-sm font-medium text-gray-700 hover:text-primary-600">
+                                            <page.icon className="w-5 h-5 mr-1" />
                                             {page.name}
                                         </a>
                                     ))}
-                                </div>
-                            </PopoverGroup>
 
+                                </div>
+                            </div>
+
+                            {/* Right section */}
                             <div className="ml-auto flex items-center">
+
+
+                                {/* Auth */}
                                 <div className="hidden lg:flex lg:flex-1 lg:items-center lg:justify-end lg:space-x-6">
-                                    <a href="#" className="text-sm font-medium text-gray-700 hover:text-gray-800">
-                                        Sign in
+                                    {/* Search */}
+                                    <a href="/search" className="p-2 text-gray-400 hover:text-primary-500">
+                                        <MagnifyingGlassIcon className="size-6" />
                                     </a>
-                                    <span aria-hidden="true" className="h-6 w-px bg-gray-200" />
-                                    <a href="#" className="text-sm font-medium text-gray-700 hover:text-gray-800">
-                                        Create account
-                                    </a>
-                                </div>
+                                    <span className="h-6 w-px bg-gray-200" />
+                                    
+                                    {/* Hello + Username khi đã đăng nhập */}
+                                    {isLoggedIn && user ? (
+                                        <>
+                                            <span className="text-sm font-medium text-primary-600">
+                                                Hello, {user.username}
+                                            </span>
+                                            <span className="h-6 w-px bg-gray-200" />
+                                        </>
+                                    ) : (
+                                        <>
+                                            <a href="/login" className="text-sm font-medium text-gray-700 hover:text-primary-600">
+                                                Sign in
+                                            </a>
+                                            <span className="h-6 w-px bg-gray-200" />
+                                            <a href="/register" className="text-sm font-medium text-gray-700 hover:text-primary-600">
+                                                Create account
+                                            </a>
+                                            <span className="h-6 w-px bg-gray-200" />
+                                        </>
+                                    )}
+                                    {/* Language */}
+                                    <Popover className="hidden lg:ml-8 lg:flex">
+                                        <PopoverButton className="flex items-center text-sm font-medium text-gray-700 hover:text-primary-600 focus:outline-none">
+                                            <img
+                                                src={LANGUAGES[language].flag}
+                                                className="h-4 w-6 rounded-sm object-cover"
+                                            />
+                                            <span className="ml-2">{LANGUAGES[language].code}</span>
 
-                                <div className="hidden lg:ml-8 lg:flex">
-                                    <a href="#" className="flex items-center text-gray-700 hover:text-gray-800">
-                                        <img
-                                            alt=""
-                                            src="https://tailwindcss.com/plus-assets/img/flags/flag-canada.svg"
-                                            className="block h-auto w-5 shrink-0"
-                                        />
-                                        <span className="ml-3 block text-sm font-medium">CAD</span>
-                                        <span className="sr-only">, change currency</span>
-                                    </a>
-                                </div>
+                                            <svg
+                                                className="ml-1 h-4 w-4 text-gray-500"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                strokeWidth="2"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                                            </svg>
+                                        </PopoverButton>
 
-                                {/* Search */}
-                                <div className="flex lg:ml-6">
-                                    <a href="#" className="p-2 text-gray-400 hover:text-gray-500">
-                                        <span className="sr-only">Search</span>
-                                        <MagnifyingGlassIcon aria-hidden="true" className="size-6" />
-                                    </a>
-                                </div>
+                                        <PopoverPanel
+                                            anchor="bottom start"
+                                            className="absolute mt-2 w-36 rounded-md bg-white border border-neutral-200 shadow-xl p-2 z-50"
+                                        >
+                                            {({ close }) => (
+                                                <>
+                                                    <button
+                                                        onClick={() => {
+                                                            setLanguage("vi")
+                                                            close()
+                                                        }}
+                                                        className="flex items-center w-full px-3 py-2 rounded-md hover:bg-neutral-100 transition"
+                                                    >
+                                                        <img src={LANGUAGES.vi.flag} className="h-4 w-6 rounded-sm" />
+                                                        <span className="ml-2 text-sm font-medium">VI</span>
+                                                    </button>
 
-                                {/* Cart */}
-                                <div className="ml-4 flow-root lg:ml-6">
-                                    <a href="#" className="group -m-2 flex items-center p-2">
-                                        <ShoppingBagIcon
-                                            aria-hidden="true"
-                                            className="size-6 shrink-0 text-gray-400 group-hover:text-gray-500"
-                                        />
-                                        <span className="ml-2 text-sm font-medium text-gray-700 group-hover:text-gray-800">0</span>
-                                        <span className="sr-only">items in cart, view bag</span>
-                                    </a>
+                                                    <button
+                                                        onClick={() => {
+                                                            setLanguage("en")
+                                                            close()
+                                                        }}
+                                                        className="flex items-center w-full px-3 py-2 rounded-md hover:bg-neutral-100 transition"
+                                                    >
+                                                        <img src={LANGUAGES.en.flag} className="h-4 w-6 rounded-sm" />
+                                                        <span className="ml-2 text-sm font-medium">EN</span>
+                                                    </button>
+                                                </>
+                                            )}
+                                        </PopoverPanel>
+
+
+                                    </Popover>
+                                    {/* Profile - chỉ hiển thị khi đã đăng nhập */}
+                                    {isLoggedIn && user && (
+                                        <Popover className="hidden lg:ml-4 lg:flex relative">
+                                            <PopoverButton className="flex items-center text-sm font-medium text-gray-700 hover:text-primary-600 focus:outline-none">
+                                                <UserCircleIcon className="w-6 h-6 text-gray-600" />
+                                                <span className="ml-1">Profile</span>
+
+                                                <svg
+                                                    className="ml-1 h-4 w-4 text-gray-500"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    strokeWidth="2"
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                                                </svg>
+                                            </PopoverButton>
+
+                                            <PopoverPanel
+                                                anchor="bottom end"
+                                                className="absolute mt-2 w-48 rounded-md bg-white border border-neutral-200 shadow-xl p-2 z-50"
+                                            >
+                                                {({ close }) => (
+                                                    <div className="flex flex-col">
+                                                        <button
+                                                            onClick={() => {
+                                                                close();
+                                                                navigate("/profile");
+                                                            }}
+                                                            className="flex items-center w-full px-3 py-2 rounded-md hover:bg-neutral-100 transition text-left"
+                                                        >
+                                                            My Profile
+                                                        </button>
+
+
+
+                                                        <button
+                                                            onClick={() => { close(); navigate("/my-tour-bookings"); }}
+                                                            className="flex items-center w-full px-3 py-2 rounded-md hover:bg-neutral-100 transition text-left"
+                                                        >
+                                                            My tours Bookings
+                                                        </button>
+                                                        <button
+                                                            onClick={() => { close(); navigate("/my-car-bookings"); }}
+                                                            className="flex items-center w-full px-3 py-2 rounded-md hover:bg-neutral-100 transition text-left"
+                                                        >
+                                                            My Car Bookings
+                                                        </button>
+                                                        <button
+                                                            onClick={() => { 
+                                                                close();
+                                                                handleLogout();
+                                                            }}
+                                                            className="flex items-center w-full px-3 py-2 rounded-md hover:bg-neutral-100 text-red-600 transition text-left"
+                                                        >
+                                                            Logout
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </PopoverPanel>
+                                        </Popover>
+                                    )}
                                 </div>
                             </div>
                         </div>

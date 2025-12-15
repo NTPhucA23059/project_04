@@ -1,23 +1,32 @@
 import { useState } from "react";
 import AdminLayout from "../component/AdminLayout";
 import Dashboard from "../component/dashboard/Dashboard";
+import ManageSystemUsers from "../component/managesystemusers/ManageSystemUsers";
+import ManageUserAuthorization from "../component/manageuserauthorization/ManageUserAuthorization";
+import ManageAdminProfile from "../component/manageadminprofile/ManageAdminProfile";
 
 
 export default function AdminPage() {
-    const [activeTab, setActiveTab] = useState("dashboard");
+  const [activeTab, setActiveTab] = useState("dashboard");
 
-    const renderContent = () => {
-        switch (activeTab) {
-            case "dashboard":
-                return <Dashboard />;
-            default:
-                return <Dashboard />;
-        }
-    };
+  const renderContent = () => {
+    switch (activeTab) {
+      case "dashboard":
+        return <Dashboard />;
+      case "manage-users":
+        return <ManageSystemUsers />;
+      case "manage-authorization":
+        return <ManageUserAuthorization />;
+      case "admin-profile":
+        return <ManageAdminProfile />;
+      default:
+        return <Dashboard />;
+    }
+  };
 
-    return (
-        <AdminLayout activeTab={activeTab} setActiveTab={setActiveTab}>
-            {renderContent()}
-        </AdminLayout>
-    );
+  return (
+    <AdminLayout activeTab={activeTab} setActiveTab={setActiveTab}>
+      {renderContent()}
+    </AdminLayout>
+  );
 }

@@ -1,0 +1,57 @@
+/* Make background darker for readability */
+.category-item {
+    position: relative;
+}
+
+.category-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.2);
+    transition: 0.3s ease;
+}
+
+.category-item:hover .category-overlay {
+    background: rgba(255, 255, 255, 0.4);
+}
+
+/* Left big item custom spacing */
+.category-left-text h1 {
+    font-weight: bold;
+}
+
+/* Add smooth hover zoom effect */
+.category-item {
+    overflow: hidden;
+}
+
+.category-item:hover {
+    transform: scale(1.02);
+    transition: 0.3s ease;
+}
+
+/* Entire section padding fix */
+.category-section {
+    margin-top: 60px;
+}
+
+/* Large item styling */
+.category-left {
+    transition: 0.35s;
+}
+
+.category-left:hover {
+    transform: scale(1.01);
+}
+.category-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.category-card img {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
