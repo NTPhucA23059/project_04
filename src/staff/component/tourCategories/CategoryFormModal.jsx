@@ -11,7 +11,7 @@ export default function CategoryFormModal({
     CategoryCode: "",
     CategoryName: "",
     Description: "",
-    Status: "Active",
+    Status: 1,
   });
 
   const [errors, setErrors] = useState({});
@@ -23,14 +23,14 @@ export default function CategoryFormModal({
         CategoryCode: initial?.CategoryCode ?? "",
         CategoryName: initial?.CategoryName ?? "",
         Description: initial?.Description ?? "",
-        Status: initial?.Status ?? "Active",
+        Status: initial?.Status ?? 1,
       });
     } else {
       setForm({
         CategoryCode: "",
         CategoryName: "",
         Description: "",
-        Status: "Active",
+        Status: 1,
       });
     }
   }, [initial]);

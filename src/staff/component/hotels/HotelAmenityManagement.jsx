@@ -249,7 +249,7 @@ export default function HotelAmenityManagement() {
         <table className="w-full text-sm">
           <thead className="bg-primary-50 border-b border-primary-200">
             <tr>
-              {["Hotel", "Amenity Name", "Category", "Icon", "Sort Order", "Actions"].map(
+              {["Hotel", "Amenity Name", "Category", "Sort Order", "Actions"].map(
                 (h) => (
                   <th key={h} className="px-4 py-3 text-left font-semibold text-neutral-700">
                     {h}
@@ -275,7 +275,7 @@ export default function HotelAmenityManagement() {
                   </td>
                   <td className="px-4 py-2 font-medium">
                     <div className="flex items-center gap-2">
-                      {a.icon && <span className="text-lg">{a.icon}</span>}
+                     
                       <span>{a.amenityName}</span>
                     </div>
                   </td>
@@ -288,7 +288,6 @@ export default function HotelAmenityManagement() {
                       "-"
                     )}
                   </td>
-                  <td className="px-4 py-2 text-2xl">{a.icon || "-"}</td>
                   <td className="px-4 py-2">{a.sortOrder ?? 0}</td>
 
                   <td className="px-4 py-2 space-x-2">
