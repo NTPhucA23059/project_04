@@ -1,7 +1,16 @@
 import { useEffect } from 'react';
 import { ExclamationTriangleIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
 
-export default function ConfirmDialog({ isOpen, onClose, onConfirm, title, message, type = 'warning' }) {
+export default function ConfirmDialog({ 
+    isOpen, 
+    onClose, 
+    onConfirm, 
+    title, 
+    message, 
+    type = 'warning',
+    confirmText = 'Confirm',
+    cancelText = 'Cancel'
+}) {
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -19,6 +28,7 @@ export default function ConfirmDialog({ isOpen, onClose, onConfirm, title, messa
     warning: { icon: ExclamationTriangleIcon, color: 'text-amber-600', bg: 'bg-amber-100' },
     danger: { icon: XCircleIcon, color: 'text-red-600', bg: 'bg-red-100' },
     info: { icon: CheckCircleIcon, color: 'text-emerald-600', bg: 'bg-emerald-100' },
+    success: { icon: CheckCircleIcon, color: 'text-green-600', bg: 'bg-green-100' },
   };
 
   const config = iconConfig[type] || iconConfig.warning;
@@ -47,7 +57,7 @@ export default function ConfirmDialog({ isOpen, onClose, onConfirm, title, messa
             onClick={onClose}
             className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition shadow-sm"
           >
-            Cancel
+            {cancelText}
           </button>
           <button
             onClick={() => {
@@ -57,18 +67,19 @@ export default function ConfirmDialog({ isOpen, onClose, onConfirm, title, messa
             className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition shadow-md ${
               type === 'danger'
                 ? 'bg-red-600 hover:bg-red-700'
-                : type === 'info'
+                : type === 'info' || type === 'success'
                 ? 'bg-emerald-600 hover:bg-emerald-700'
                 : 'bg-amber-600 hover:bg-amber-700'
             }`}
           >
-            Confirm
+            {confirmText}
           </button>
         </div>
       </div>
     </div>
   );
 }
+
 
 
 

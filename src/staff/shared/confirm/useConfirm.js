@@ -16,12 +16,19 @@ import { useState, useCallback } from 'react';
  * };
  */
 export function useConfirm() {
-  const [dialog, setDialog] = useState({ isOpen: false, title: '', message: '', type: 'warning' });
+  const [dialog, setDialog] = useState({ 
+    isOpen: false, 
+    title: '', 
+    message: '', 
+    type: 'warning',
+    confirmText: 'Confirm',
+    cancelText: 'Cancel'
+  });
   const [resolvePromise, setResolvePromise] = useState(null);
 
-  const confirm = useCallback(({ title, message, type = 'warning' }) => {
+  const confirm = useCallback(({ title, message, type = 'warning', confirmText, cancelText }) => {
     return new Promise((resolve) => {
-      setDialog({ isOpen: true, title, message, type });
+      setDialog({ isOpen: true, title, message, type, confirmText, cancelText });
       setResolvePromise(() => resolve);
     });
   }, []);
@@ -31,7 +38,7 @@ export function useConfirm() {
       resolvePromise(true);
       setResolvePromise(null);
     }
-    setDialog({ isOpen: false, title: '', message: '', type: 'warning' });
+    setDialog({ isOpen: false, title: '', message: '', type: 'warning', confirmText: 'Confirm', cancelText: 'Cancel' });
   }, [resolvePromise]);
 
   const handleCancel = useCallback(() => {
@@ -39,7 +46,7 @@ export function useConfirm() {
       resolvePromise(false);
       setResolvePromise(null);
     }
-    setDialog({ isOpen: false, title: '', message: '', type: 'warning' });
+    setDialog({ isOpen: false, title: '', message: '', type: 'warning', confirmText: 'Confirm', cancelText: 'Cancel' });
   }, [resolvePromise]);
 
   return {
@@ -49,6 +56,7 @@ export function useConfirm() {
     handleCancel,
   };
 }
+
 
 
 

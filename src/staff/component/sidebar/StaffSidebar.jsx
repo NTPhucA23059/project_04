@@ -57,6 +57,8 @@ export default function StaffSidebar({ isOpen, activeTab, setActiveTab }) {
         { id: "attractions", name: "Attractions", icon: MapPinIcon },
         { id: "tours", name: "Tours", icon: MapIcon },
         { id: "tourSchedules", name: "Tour Schedules", icon: CalendarIcon },
+        { id: "bookings", name: "Bookings", icon: ClipboardDocumentCheckIcon }
+
       ],
     },
     {
@@ -66,17 +68,18 @@ export default function StaffSidebar({ isOpen, activeTab, setActiveTab }) {
       items: [
         { id: "carTypes", name: "Car Types", icon: TypeIcon },
         { id: "cars", name: "Cars", icon: TruckIcon },
-        { id: "flights", name: "Flights", icon: PaperAirplaneIcon },
       ],
     },
     {
-      key: "hotel",
+      key: "hotel & flight",
       title: "Hotel Management",
       collapsible: true,
       items: [
         { id: "hotels", name: "Hotels", icon: BuildingOfficeIcon },
         { id: "hotelAmenities", name: "Amenities", icon: StarIcon },
         { id: "nearbyAttractions", name: "Nearby Attractions", icon: MapPinIcon },
+        { id: "flights", name: "Flights", icon: PaperAirplaneIcon }
+
       ],
     },
     {
@@ -84,7 +87,6 @@ export default function StaffSidebar({ isOpen, activeTab, setActiveTab }) {
       title: "Operations",
       collapsible: true,
       items: [
-        { id: "bookings", name: "Bookings", icon: ClipboardDocumentCheckIcon },
         { id: "refunds", name: "Refunds", icon: ArrowPathIcon },
         { id: "invoices", name: "Invoices", icon: DocumentTextIcon },
       ],
@@ -101,9 +103,8 @@ export default function StaffSidebar({ isOpen, activeTab, setActiveTab }) {
 
   return (
     <aside
-      className={`${
-        isOpen ? "translate-x-0" : "-translate-x-full"
-      } fixed top-0 left-0 z-40 h-full w-72 bg-white text-neutral-900 
+      className={`${isOpen ? "translate-x-0" : "-translate-x-full"
+        } fixed top-0 left-0 z-40 h-full w-72 bg-white text-neutral-900 
          border-r border-neutral-200 shadow-xl transform transition-transform duration-300 overflow-y-auto`}
     >
       {/* Logo Section */}
@@ -131,11 +132,10 @@ export default function StaffSidebar({ isOpen, activeTab, setActiveTab }) {
               {group.collapsible ? (
                 <button
                   onClick={() => toggleGroup(group.key)}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 mb-2 rounded-lg transition-all duration-200 ${
-                    hasActiveItem
+                  className={`w-full flex items-center justify-between px-3 py-2.5 mb-2 rounded-lg transition-all duration-200 ${hasActiveItem
                       ? "bg-primary-50 text-primary-700 border border-primary-200 shadow-sm"
                       : "text-neutral-600 hover:text-primary-700 hover:bg-primary-50/50"
-                  }`}
+                    }`}
                 >
                   <h3 className="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
                     {isGroupOpen ? (
@@ -162,18 +162,16 @@ export default function StaffSidebar({ isOpen, activeTab, setActiveTab }) {
                         <button
                           onClick={() => setActiveTab(item.id)}
                           className={`w-full flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200
-                            ${
-                              isActive
-                                ? "bg-gradient-to-r from-primary-600 to-primary-500 text-white shadow-md shadow-primary-500/40"
-                                : "text-neutral-700 hover:bg-primary-50 hover:text-primary-700"
+                            ${isActive
+                              ? "bg-gradient-to-r from-primary-600 to-primary-500 text-white shadow-md shadow-primary-500/40"
+                              : "text-neutral-700 hover:bg-primary-50 hover:text-primary-700"
                             }`}
                         >
                           <item.icon
-                            className={`w-5 h-5 mr-3 transition-transform ${
-                              isActive
+                            className={`w-5 h-5 mr-3 transition-transform ${isActive
                                 ? "text-white"
                                 : "text-neutral-500 group-hover:text-primary-600"
-                            } ${isActive ? "scale-110" : ""}`}
+                              } ${isActive ? "scale-110" : ""}`}
                           />
                           <span className="flex-1 text-left">{item.name}</span>
                           {isActive && (

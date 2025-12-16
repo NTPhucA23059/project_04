@@ -31,7 +31,6 @@ const navigation = {
         { name: "Car Rental", href: "/cars", icon: TruckIcon },
         { name: "Hotel", href: "/hotels", icon: BuildingOfficeIcon },
         { name: "Flights", href: "/flights", icon: PaperAirplaneIcon },
-        { name: "Bookings", href: "#", icon: ClipboardDocumentListIcon },
         { name: "Contact", href: "/contact", icon: InformationCircleIcon },
     ],
 };
@@ -62,30 +61,30 @@ export default function Navigation() {
             setUser(currentUser);
             setIsLoggedIn(isAuthenticated());
         };
-        
+
         checkAuth();
-        
+
         // Listen for storage changes (khi logout từ component khác hoặc login)
         const handleStorageChange = (e) => {
             if (e.key === 'token' || e.key === 'user') {
                 checkAuth();
             }
         };
-        
+
         // Listen for custom event khi login thành công
         const handleLoginSuccess = () => {
             checkAuth();
         };
-        
+
         window.addEventListener('storage', handleStorageChange);
         window.addEventListener('userLogin', handleLoginSuccess);
-        
+
         // Check lại mỗi khi component được focus (khi navigate về)
         const handleFocus = () => {
             checkAuth();
         };
         window.addEventListener('focus', handleFocus);
-        
+
         return () => {
             window.removeEventListener('storage', handleStorageChange);
             window.removeEventListener('userLogin', handleLoginSuccess);
@@ -264,7 +263,7 @@ export default function Navigation() {
                                         <MagnifyingGlassIcon className="size-6" />
                                     </a>
                                     <span className="h-6 w-px bg-gray-200" />
-                                    
+
                                     {/* Hello + Username khi đã đăng nhập */}
                                     {isLoggedIn && user ? (
                                         <>
@@ -387,7 +386,7 @@ export default function Navigation() {
                                                             My Car Bookings
                                                         </button>
                                                         <button
-                                                            onClick={() => { 
+                                                            onClick={() => {
                                                                 close();
                                                                 handleLogout();
                                                             }}
