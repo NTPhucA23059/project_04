@@ -24,6 +24,16 @@ export default function FlightDetailModal({
           </button>
         </div>
 
+        {flight.imageURL && (
+          <div className="mb-4">
+            <img
+              src={flight.imageURL.startsWith('http') ? flight.imageURL : `${import.meta.env.VITE_API_BASE_URL || ''}${flight.imageURL}`}
+              alt={flight.flightCode}
+              className="w-full max-w-md h-48 object-cover rounded-lg border border-neutral-200"
+            />
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div>
             <span className="font-semibold">Code:</span> {flight.flightCode}
@@ -89,5 +99,7 @@ export default function FlightDetailModal({
     </div>
   );
 }
+
+
 
 

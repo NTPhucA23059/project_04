@@ -5,3 +5,5 @@ export const formatPrice = (number) => {
     }).format(number);
 };
 
+
+

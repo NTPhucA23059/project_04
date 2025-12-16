@@ -26,6 +26,7 @@ const emptyForm = {
   price: "",
   scheduleInfo: "",
   flightType: "",
+  imageURL: "",
   status: 1,
 };
 
@@ -47,6 +48,7 @@ export default function FlightManagement() {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [errors, setErrors] = useState({});
+  const [imageFile, setImageFile] = useState(null);
 
   const [openDetail, setOpenDetail] = useState(false);
   const [detailFlight, setDetailFlight] = useState(null);
@@ -93,6 +95,7 @@ export default function FlightManagement() {
     price: f.price ?? "",
     scheduleInfo: f.scheduleInfo || "",
     flightType: f.flightType || "",
+    imageURL: f.imageURL || "",
     status: f.status ?? 1,
   });
 
@@ -108,6 +111,7 @@ export default function FlightManagement() {
       price: f.price === "" ? null : Number(f.price),
       scheduleInfo: f.scheduleInfo?.trim() || "",
       flightType: f.flightType?.trim() || "",
+      imageURL: f.imageURL?.trim() || null,
       status: f.status === "" ? null : Number(f.status),
     };
     if (isCreate) {
@@ -186,6 +190,7 @@ export default function FlightManagement() {
     setEditing(null);
     setForm(emptyForm);
     setErrors({});
+    setImageFile(null);
     setOpenModal(true);
   };
 
@@ -193,6 +198,7 @@ export default function FlightManagement() {
     setEditing(f);
     setForm(toForm(f));
     setErrors({});
+    setImageFile(null);
     setOpenModal(true);
   };
 
@@ -207,15 +213,16 @@ export default function FlightManagement() {
     try {
       const payload = toPayload(form, isCreate);
       if (isCreate) {
-        await createFlight(payload);
+        await createFlight(payload, imageFile);
         toast.success("Flight created successfully");
       } else {
-        await updateFlight(editing.flightID, payload);
+        await updateFlight(editing.flightID, payload, imageFile);
         toast.success("Flight updated successfully");
       }
       setOpenModal(false);
       setEditing(null);
       setForm(emptyForm);
+      setImageFile(null);
       loadFlights();
     } catch (err) {
       console.error("Save flight error:", err);
@@ -369,8 +376,13 @@ export default function FlightManagement() {
         errors={errors}
         cities={cities}
         saving={saving}
-        onClose={() => setOpenModal(false)}
+        imageFile={imageFile}
+        onClose={() => {
+          setOpenModal(false);
+          setImageFile(null);
+        }}
         onChange={setForm}
+        onImageChange={setImageFile}
         onSave={handleSave}
       />
 

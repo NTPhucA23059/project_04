@@ -7,10 +7,40 @@ export default function FlightFormModal({
   errors,
   cities,
   saving,
+  imageFile,
   onClose,
   onChange,
+  onImageChange,
   onSave,
 }) {
+  const [imagePreview, setImagePreview] = React.useState(null);
+
+  React.useEffect(() => {
+    if (imageFile) {
+      const reader = new FileReader();
+      reader.onloadend = () => setImagePreview(reader.result);
+      reader.readAsDataURL(imageFile);
+    } else if (form.imageURL) {
+      setImagePreview(form.imageURL);
+    } else {
+      setImagePreview(null);
+    }
+  }, [imageFile, form.imageURL]);
+
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        alert("Please select an image file");
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        alert("Image size must not exceed 5MB");
+        return;
+      }
+      onImageChange(file);
+    }
+  };
   if (!open) return null;
 
   return (
@@ -293,6 +323,70 @@ export default function FlightFormModal({
             />
           </div>
 
+          <div className="bg-white border rounded-xl p-4 shadow-sm">
+            <p className="font-semibold text-neutral-800 mb-3">Image</p>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs text-neutral-500 mb-1">
+                  Upload Image
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="w-full text-sm text-neutral-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
+                />
+                <p className="text-xs text-neutral-500 mt-1">
+                  Supported: JPG, PNG, GIF. Max size: 5MB
+                </p>
+              </div>
+
+              {imagePreview && (
+                <div className="mt-3">
+                  <p className="text-xs text-neutral-600 mb-2">Preview:</p>
+                  <div className="relative inline-block">
+                    <img
+                      src={imagePreview}
+                      alt="Preview"
+                      className="h-32 w-auto rounded-lg border border-neutral-200 object-cover"
+                    />
+                    {imageFile && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onImageChange(null);
+                          onChange({ ...form, imageURL: "" });
+                        }}
+                        className="absolute top-1 right-1 h-6 w-6 flex items-center justify-center rounded-full bg-red-600 text-white text-xs shadow-lg hover:bg-red-700"
+                        title="Remove image"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs text-neutral-500 mb-1">
+                  Or enter image URL:
+                </label>
+                <input
+                  type="text"
+                  className="w-full border border-neutral-200 px-3 py-2 rounded-lg text-sm focus:ring-2 focus:ring-primary-500"
+                  value={form.imageURL}
+                  onChange={(e) => {
+                    onChange({ ...form, imageURL: e.target.value });
+                    if (e.target.value) {
+                      onImageChange(null);
+                    }
+                  }}
+                  placeholder="E.g: /uploads/flights/image.jpg or https://..."
+                />
+              </div>
+            </div>
+          </div>
+
           <div className="flex justify-end gap-3 pt-2">
             <button
               onClick={onClose}
@@ -314,5 +408,7 @@ export default function FlightFormModal({
     </div>
   );
 }
+
+
 
 

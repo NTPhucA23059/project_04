@@ -2,6 +2,15 @@
 import { MdFlight } from "react-icons/md";
 import { formatPrice } from "./formatPrice";
 import { Link } from "react-router-dom";
+import api from "../../../services/api";
+
+// Convert relative URL to absolute URL
+const toAbsoluteUrl = (url) => {
+  if (!url) return "";
+  if (/^https?:\/\//.test(url)) return url;
+  const base = (api.defaults.baseURL || "").replace(/\/$/, "");
+  return `${base}/${url.replace(/^\/+/, "")}`;
+};
 
 export default function FlightCard({ item }) {
   if (!item) return null; // 🛡️ tránh crash khi data null
@@ -9,15 +18,16 @@ export default function FlightCard({ item }) {
   const fromName = item.fromCityName || "—";
   const toName = item.toCityName || "—";
 
+  // Get image URL - check both imageURL and imageUrl for compatibility
+  const imageSrc = item.imageURL || item.imageUrl;
+  const imageUrl = imageSrc ? toAbsoluteUrl(imageSrc) : "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=1000&q=80";
+
   return (
     <Link to={`/flights/${item.flightID}`} className="block">
       <div className="rounded-xl border border-neutral-200 bg-white overflow-hidden hover:shadow-lg hover:border-primary-300 transition cursor-pointer">
         {/* IMAGE (fallback an toàn) */}
         <img
-          src={
-            item.imageUrl ||
-            "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=1000&q=80"
-          }
+          src={imageUrl}
           className="h-44 w-full object-cover"
           alt={item.airline}
         />

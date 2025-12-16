@@ -28,13 +28,16 @@ import TourFormModal from "./TourFormModal";
 import TourDetailModal from "./TourDetailModal";
 
 // Form chỉ quản lý mức "khung Tour" (bảng Tours), không kiêm luôn TourDetail
+const TOUR_CODE_PREFIX = "TOUR-";
 const emptyForm = {
   tourID: null,
   tourCode: "",
   tourName: "",
-  nation: "",
+  nation: "Viet Nam",
   startingLocation: "",
   duration: "",
+  days: "",
+  nights: "",
   status: 1,
   categoryID: "",
   tourImg: "",
@@ -148,31 +151,67 @@ export default function TourManagement() {
     return () => clearTimeout(t);
   }, [search, page]);
 
-  const toForm = (t) => ({
-    ...emptyForm,
-    ...t,
-    tourImg: toAbsoluteUrl(t.tourImg),
-    // Gallery images now come directly from Tour.images (not from TourDetail)
-    images:
-      (t.images || []).map((i) => ({
-        imageID: i.imageID,
-        imageUrl: toAbsoluteUrl(i.imageUrl),
-        isNew: false,
-      })) || [],
-  });
+  const toForm = (t) => {
+    // Khi edit, nếu tourCode có prefix TOUR-, chỉ lấy phần sau
+    let tourCodeValue = t.tourCode || "";
+    if (tourCodeValue.startsWith(TOUR_CODE_PREFIX)) {
+      tourCodeValue = tourCodeValue.substring(TOUR_CODE_PREFIX.length);
+    }
+    
+    // Parse duration từ "X days Y nights" thành days và nights
+    let days = "";
+    let nights = "";
+    if (t.duration) {
+      const durationStr = t.duration.toLowerCase();
+      const daysMatch = durationStr.match(/(\d+)\s*days?/);
+      const nightsMatch = durationStr.match(/(\d+)\s*nights?/);
+      if (daysMatch) days = daysMatch[1];
+      if (nightsMatch) nights = nightsMatch[1];
+    }
+    
+    return {
+      ...emptyForm,
+      ...t,
+      tourCode: tourCodeValue,
+      nation: t.nation || "Viet Nam",
+      days: days,
+      nights: nights,
+      tourImg: toAbsoluteUrl(t.tourImg),
+      // Gallery images now come directly from Tour.images (not from TourDetail)
+      images:
+        (t.images || []).map((i) => ({
+          imageID: i.imageID,
+          imageUrl: toAbsoluteUrl(i.imageUrl),
+          isNew: false,
+        })) || [],
+    };
+  };
 
   const toPayload = (f) => {
+    // Thêm prefix TOUR- vào tourCode
+    const tourCodeValue = f.tourCode?.trim() || "";
+    const fullTourCode = tourCodeValue ? `${TOUR_CODE_PREFIX}${tourCodeValue}` : "";
+    
+    // Tạo duration string từ days và nights
+    let durationStr = "";
+    if (f.days || f.nights) {
+      const parts = [];
+      if (f.days) parts.push(`${f.days} day${f.days > 1 ? 's' : ''}`);
+      if (f.nights) parts.push(`${f.nights} night${f.nights > 1 ? 's' : ''}`);
+      durationStr = parts.join(" ");
+    }
+    
     const payload = {
-      tourCode: f.tourCode?.trim() || "",
+      tourCode: fullTourCode,
       tourName: f.tourName?.trim() || "",
       startingLocation: f.startingLocation?.trim() || "",
       status: f.status != null ? Number(f.status) : 1,
       categoryID: f.categoryID ? Number(f.categoryID) : null,
+      nation: f.nation?.trim() || "Viet Nam",
     };
     
     // Optional fields
-    if (f.nation?.trim()) payload.nation = f.nation.trim();
-    if (f.duration?.trim()) payload.duration = f.duration.trim();
+    if (durationStr) payload.duration = durationStr;
     if (f.tourDescription?.trim()) payload.tourDescription = f.tourDescription.trim();
     
     return payload;
@@ -180,7 +219,14 @@ export default function TourManagement() {
 
   const validate = () => {
     const e = {};
-    if (!form.tourCode?.trim()) e.tourCode = "Required";
+    if (!form.tourCode?.trim()) {
+      e.tourCode = "Required";
+    } else {
+      // Validate tourCode chỉ chứa chữ và số
+      if (!/^[a-zA-Z0-9]+$/.test(form.tourCode.trim())) {
+        e.tourCode = "Tour code must contain only letters and numbers";
+      }
+    }
     if (!form.tourName?.trim()) e.tourName = "Required";
     if (!form.startingLocation?.trim()) e.startingLocation = "Required";
     if (!form.categoryID) e.categoryID = "Required";

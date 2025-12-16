@@ -11,6 +11,15 @@ import {
 } from "@heroicons/react/24/solid";
 import HotelHero from "./HotelHero";
 import { fetchHotelById } from "../../../services/customer/hotelService";
+import api from "../../../services/api";
+
+// Convert relative URL to absolute URL
+const toAbsoluteUrl = (url) => {
+    if (!url) return "";
+    if (/^https?:\/\//.test(url)) return url;
+    const base = (api.defaults.baseURL || "").replace(/\/$/, "");
+    return `${base}/${url.replace(/^\/+/, "")}`;
+};
 
 export default function HotelDetailPage() {
     const { id } = useParams();
@@ -19,6 +28,7 @@ export default function HotelDetailPage() {
     const [loading, setLoading] = useState(true);
     const [selectedImageIndex, setSelectedImageIndex] = useState(0);
     const [showAllAmenities, setShowAllAmenities] = useState(false);
+    const [mainDisplayImage, setMainDisplayImage] = useState(null);
 
     useEffect(() => {
         const fetchHotel = async () => {
@@ -69,13 +79,43 @@ export default function HotelDetailPage() {
         const nearbyAttractions = hotel.nearbyAttractions || [];
 
     // Ảnh chính từ bảng Hotels (ImageUrl)
-    const mainImage = hotel.imageUrl;
+    const mainImage = hotel.imageUrl ? toAbsoluteUrl(hotel.imageUrl) : null;
     
-    // 3 ảnh phụ từ bảng Images
-    const subImages = hotel.images?.map(img => img.imageUrl || img.url).filter(Boolean).slice(0, 3) || [];
+    // 4 ảnh phụ từ bảng Images
+    const subImages = (hotel.images || [])
+        .map(img => {
+            const url = img.imageUrl || img.url || img.ImageUrl;
+            return url ? toAbsoluteUrl(url) : null;
+        })
+        .filter(Boolean)
+        .slice(0, 4);
     
-    // Tổng hợp: ảnh chính + 3 ảnh phụ
-    const displayImages = [mainImage, ...subImages].filter(Boolean);
+    // Tổng hợp: ảnh chính + 4 ảnh phụ
+    const allImages = [mainImage, ...subImages].filter(Boolean);
+    
+    // Fallback nếu không có ảnh nào
+    if (allImages.length === 0) {
+        allImages.push("https://placehold.co/800x500?text=No+Image");
+    }
+    
+    // Ảnh chính đang hiển thị (mặc định là ảnh đầu tiên, hoặc ảnh đã chọn)
+    const currentMainImage = mainDisplayImage || allImages[0];
+    
+    // 4 ảnh phụ (loại bỏ ảnh đang hiển thị ở vị trí chính)
+    let thumbnailImages = allImages.filter(img => img !== currentMainImage);
+    
+    // Nếu chưa đủ 4 ảnh phụ, lấy thêm từ allImages
+    while (thumbnailImages.length < 4 && thumbnailImages.length < allImages.length) {
+        const remaining = allImages.filter(img => !thumbnailImages.includes(img));
+        if (remaining.length > 0) {
+            thumbnailImages.push(remaining[0]);
+        } else {
+            break;
+        }
+    }
+    
+    // Giới hạn 4 ảnh phụ
+    thumbnailImages = thumbnailImages.slice(0, 4);
 
     const averageRating = hotel.rating;
 
@@ -138,39 +178,46 @@ export default function HotelDetailPage() {
                 </div>
 
                 <div className="mb-8">
-                    {mainImage || subImages.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            {/* Ảnh chính (từ Hotels.ImageUrl) */}
-                            <div className="md:col-span-2 md:row-span-2">
+                    {allImages.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                            {/* Ảnh chính lớn */}
+                            <div className="md:col-span-3 md:row-span-2">
                                 <img
-                                    src={mainImage || subImages[0]}
+                                    src={currentMainImage}
                                     alt={hotel.hotelName}
-                                    className="w-full h-full object-cover rounded-xl shadow-lg cursor-pointer min-h-[400px]"
-                                    onClick={() => { }}
+                                    className="w-full h-full object-cover rounded-xl shadow-lg min-h-[400px] md:min-h-[500px]"
                                 />
                             </div>
-                            {/* 3 ảnh phụ (từ bảng Images) */}
-                            {subImages.slice(0, 3).map((img, idx) => (
-                                <div
-                                    key={idx}
-                                    className={`cursor-pointer rounded-xl overflow-hidden shadow-md transition-transform hover:scale-105 ${idx === selectedImageIndex - 1 ? 'ring-2 ring-primary-500' : ''
+                            
+                            {/* 4 ảnh phụ nhỏ */}
+                            <div className="md:col-span-2 grid grid-cols-2 gap-4">
+                                {thumbnailImages.slice(0, 4).map((img, idx) => (
+                                    <div
+                                        key={idx}
+                                        className={`cursor-pointer rounded-xl overflow-hidden shadow-md transition-all hover:scale-105 ${
+                                            img === currentMainImage ? 'ring-2 ring-primary-500' : 'hover:ring-2 hover:ring-primary-300'
                                         }`}
-                                    onClick={() => setSelectedImageIndex(idx + 1)}
-                                >
-                                    <img
-                                        src={img}
-                                        alt={`${hotel.hotelName} ${idx + 2}`}
-                                        className="w-full h-full object-cover min-h-[190px]"
-                                    />
-                                </div>
-                            ))}
-                            {/* Placeholder nếu chưa đủ 3 ảnh phụ */}
-                            {subImages.length < 3 && Array.from({ length: 3 - subImages.length }).map((_, idx) => (
-                                <div key={`placeholder-${idx}`} className="hidden md:block rounded-xl bg-neutral-100 border-2 border-dashed border-neutral-300 min-h-[190px]"></div>
-                            ))}
+                                        onClick={() => setMainDisplayImage(img)}
+                                    >
+                                        <img
+                                            src={img}
+                                            alt={`${hotel.hotelName} ${idx + 1}`}
+                                            className="w-full h-full object-cover min-h-[120px] md:min-h-[140px]"
+                                        />
+                                    </div>
+                                ))}
+                                
+                                {/* Placeholder nếu chưa đủ 4 ảnh phụ */}
+                                {thumbnailImages.length < 4 && Array.from({ length: 4 - thumbnailImages.length }).map((_, idx) => (
+                                    <div 
+                                        key={`placeholder-${idx}`} 
+                                        className="hidden md:block rounded-xl bg-neutral-100 border-2 border-dashed border-neutral-300 min-h-[120px] md:min-h-[140px]"
+                                    ></div>
+                                ))}
+                            </div>
                         </div>
                     ) : (
-                        <div className="w-full h-64 bg-neutral-200 rounded-xl flex items-center justify-center">
+                        <div className="w-full h-96 bg-neutral-100 rounded-xl flex items-center justify-center">
                             <p className="text-neutral-500">No images available</p>
                         </div>
                     )}

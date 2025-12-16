@@ -25,37 +25,66 @@ const toAbsoluteUrl = (url) => {
 
     // Map backend tour response to UI shape
     const mapTour = (t) => {
-        const schedules = (t.detail?.schedules || []).map((s) => ({
+        // Get first detail for price preview
+        const firstDetail = t.details && t.details.length > 0 ? t.details[0] : t.detail;
+        const schedules = (firstDetail?.schedules || []).map((s) => ({
             ScheduleID: s.scheduleID,
             DayNumber: s.dayNumber,
             Title: s.title,
-            MealInfo: s.mealInfo,
             Summary: s.summary,
+            Notes: s.notes,
             Items: (s.items || []).map((it) => ({
                 ItemID: it.itemID,
                 TimeInfo: it.timeInfo,
                 Activity: it.activity,
-                PlaceName: it.placeName,
                 Transportation: it.transportation,
-                Cost: it.cost,
                 SortOrder: it.sortOrder,
+                AttractionName: it.attractionName,
             })),
         }));
+
+        // Get minimum price from all details
+        let minPrice = undefined;
+        if (t.details && t.details.length > 0) {
+            const prices = t.details
+                .filter(d => d.unitPrice)
+                .map(d => Number(d.unitPrice));
+            if (prices.length > 0) {
+                minPrice = Math.min(...prices);
+            }
+        } else if (firstDetail?.unitPrice) {
+            minPrice = Number(firstDetail.unitPrice);
+        }
 
         return {
             TourID: t.tourID,
             TourCode: t.tourCode,
             TourName: t.tourName,
-            TourImg: toAbsoluteUrl(t.tourImg),
+            TourImg: t.tourImg ? toAbsoluteUrl(t.tourImg) : null,
+            Images: (t.images || []).map(img => ({
+                ImageID: img.imageID,
+                ImageUrl: toAbsoluteUrl(img.imageUrl),
+            })),
             TourDescription: t.tourDescription,
             Nation: t.nation,
             StartingLocation: t.startingLocation,
             Duration: t.duration,
             CategoryID: t.categoryID,
-            Price: t.detail?.unitPrice ? Number(t.detail.unitPrice) : undefined,
+            CategoryName: t.categoryName,
+            Price: minPrice,
+            PriceFrom: minPrice, // For compatibility
             Schedules: schedules,
+            TourCities: (t.tourCities || []).map(tc => ({
+                CityID: tc.cityID,
+                CityName: tc.cityName,
+                CityOrder: tc.cityOrder,
+                StayDays: tc.stayDays,
+            })),
         };
     };
+
+    const [totalTours, setTotalTours] = useState(0);
+    const [totalPages, setTotalPages] = useState(1);
 
     useEffect(() => {
         async function load() {
@@ -63,52 +92,55 @@ const toAbsoluteUrl = (url) => {
             setError(null);
             try {
                 const res = await fetchTours({
-                    page: 0,
-                    size: 200, 
+                    page: page - 1, // Backend uses 0-based index
+                    size: ITEMS_PER_PAGE,
                     keyword: filters.destination || undefined,
                     categoryId: filters.category || undefined,
                 });
-                const items = res.items || res; 
-                setTours((items || []).map(mapTour));
-                setPage(1);
+                
+                // Handle paginated response
+                if (res.items) {
+                    const items = res.items || [];
+                    setTours(items.map(mapTour));
+                    setTotalTours(res.total || items.length);
+                    setTotalPages(res.totalPages || 1);
+                } else {
+                    // Fallback for non-paginated response
+                    const items = Array.isArray(res) ? res : [];
+                    setTours(items.map(mapTour));
+                    setTotalTours(items.length);
+                    setTotalPages(Math.ceil(items.length / ITEMS_PER_PAGE) || 1);
+                }
             } catch (e) {
-                setError("Không tải được danh sách tour",e);
+                console.error("Error loading tours:", e);
+                setError("Failed to load tours. Please try again.");
+                setTours([]);
+                setTotalTours(0);
+                setTotalPages(1);
             } finally {
                 setLoading(false);
             }
         }
         load();
-    }, [filters.destination, filters.category]);
+    }, [page, filters.destination, filters.category]);
 
     // ---------------------------------------
     // FILTER LOGIC (client side for startDate/duration/season/budget/rating)
+    // Note: Server-side pagination is used for destination and category
+    // Client-side filters are applied after receiving data
     // ---------------------------------------
     const filteredTours = useMemo(() => {
         return tours.filter((tour) => {
-            // START DATE: check tour detail departure?
-            if (filters.startDate) {
-                const hasStart = (tour.Schedules || []).some(
-                    (s) => filters.startDate && filters.startDate <= new Date()
-                );
-                // schedules không có ngày cụ thể -> bỏ qua filter này
-                if ((tour.Schedules || []).length && !hasStart) return false;
-            }
-
-            // DURATION
+            // DURATION - parse from "X days Y nights" format
             if (filters.duration && filters.duration !== "Any") {
-                const d = parseInt(tour.Duration);
-                if (filters.duration === "1–3 days" && (d < 1 || d > 3)) return false;
-                if (filters.duration === "4–7 days" && (d < 4 || d > 7)) return false;
-                if (filters.duration === "8–14 days" && (d < 8 || d > 14)) return false;
-                if (filters.duration === "15+ days" && d < 15) return false;
-            }
-
-            // SEASON (backend chưa trả season, bỏ qua nếu không có)
-            if (filters.season) {
-                const hasSeason = (tour.Schedules || []).some(
-                    (s) => s.SeasonID === filters.season
-                );
-                if ((tour.Schedules || []).length && !hasSeason) return false;
+                const durationStr = tour.Duration || "";
+                const daysMatch = durationStr.match(/(\d+)\s*days?/i);
+                const days = daysMatch ? parseInt(daysMatch[1]) : 0;
+                
+                if (filters.duration === "1–3 days" && (days < 1 || days > 3)) return false;
+                if (filters.duration === "4–7 days" && (days < 4 || days > 7)) return false;
+                if (filters.duration === "8–14 days" && (days < 8 || days > 14)) return false;
+                if (filters.duration === "15+ days" && days < 15) return false;
             }
 
             // BUDGET
@@ -119,16 +151,15 @@ const toAbsoluteUrl = (url) => {
                 }
             }
 
+            // RATING - skip for now as reviews are not loaded in list
+            // if (filters.rating) { ... }
+
             return true;
         });
     }, [tours, filters]);
 
-    // ---------------------------------------
-    // PAGINATION (client)
-    // ---------------------------------------
-    const totalPages = Math.ceil(filteredTours.length / ITEMS_PER_PAGE) || 1;
-    const startIndex = (page - 1) * ITEMS_PER_PAGE;
-    const currentTours = filteredTours.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+    // Current tours to display (already paginated from server, but may be filtered)
+    const currentTours = filteredTours;
 
     const goToPage = (p) => {
         if (p >= 1 && p <= totalPages) {
@@ -136,6 +167,11 @@ const toAbsoluteUrl = (url) => {
             window.scrollTo({ top: 0, behavior: "smooth" });
         }
     };
+
+    // Reset to page 1 when filters change
+    useEffect(() => {
+        setPage(1);
+    }, [filters.destination, filters.category]);
 
     return (
         <div className="flex flex-col min-h-screen bg-neutral-50">
@@ -185,7 +221,15 @@ const toAbsoluteUrl = (url) => {
 
                     {!loading && !error && currentTours.length === 0 && (
                         <div className="text-center text-neutral-500 py-10">
-                            No tours match your filter.
+                            <p className="text-lg mb-2">No tours found</p>
+                            <p className="text-sm">Try adjusting your filters</p>
+                        </div>
+                    )}
+
+                    {/* Results count */}
+                    {!loading && !error && currentTours.length > 0 && (
+                        <div className="text-sm text-gray-600 mb-4">
+                            Showing {currentTours.length} of {totalTours} tours
                         </div>
                     )}
 
@@ -195,32 +239,82 @@ const toAbsoluteUrl = (url) => {
                             <button
                                 disabled={page === 1}
                                 onClick={() => goToPage(page - 1)}
-                                className={`px-3 py-1 rounded-lg border text-sm 
-                                    ${page === 1 ? "opacity-40" : "hover:bg-primary-100"}`}
+                                className={`px-4 py-2 rounded-lg border text-sm font-medium transition
+                                    ${page === 1 
+                                        ? "opacity-40 cursor-not-allowed bg-gray-100" 
+                                        : "hover:bg-gray-100 border-gray-300"
+                                    }`}
                             >
                                 Previous
                             </button>
 
-                            {Array.from({ length: totalPages }, (_, i) => i + 1)
-                                .map(num => (
-                                    <button
-                                        key={num}
-                                        onClick={() => goToPage(num)}
-                                        className={`px-3 py-1 rounded-lg border text-sm
-                                            ${page === num
-                                                ? "bg-primary-500 text-white"
-                                                : "hover:bg-primary-100"
-                                            }`}
-                                    >
-                                        {num}
-                                    </button>
-                                ))}
+                            {/* Page numbers - show max 7 pages */}
+                            {(() => {
+                                const maxVisible = 7;
+                                let startPage = Math.max(1, page - Math.floor(maxVisible / 2));
+                                let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+                                if (endPage - startPage < maxVisible - 1) {
+                                    startPage = Math.max(1, endPage - maxVisible + 1);
+                                }
+
+                                const pages = [];
+                                if (startPage > 1) {
+                                    pages.push(
+                                        <button
+                                            key={1}
+                                            onClick={() => goToPage(1)}
+                                            className="px-3 py-2 rounded-lg border text-sm hover:bg-gray-100"
+                                        >
+                                            1
+                                        </button>
+                                    );
+                                    if (startPage > 2) {
+                                        pages.push(<span key="ellipsis1" className="px-2">...</span>);
+                                    }
+                                }
+
+                                for (let num = startPage; num <= endPage; num++) {
+                                    pages.push(
+                                        <button
+                                            key={num}
+                                            onClick={() => goToPage(num)}
+                                            className={`px-3 py-2 rounded-lg border text-sm font-medium transition
+                                                ${page === num
+                                                    ? "bg-gray-800 text-white border-gray-800"
+                                                    : "hover:bg-gray-100 border-gray-300"
+                                                }`}
+                                        >
+                                            {num}
+                                        </button>
+                                    );
+                                }
+
+                                if (endPage < totalPages) {
+                                    if (endPage < totalPages - 1) {
+                                        pages.push(<span key="ellipsis2" className="px-2">...</span>);
+                                    }
+                                    pages.push(
+                                        <button
+                                            key={totalPages}
+                                            onClick={() => goToPage(totalPages)}
+                                            className="px-3 py-2 rounded-lg border text-sm hover:bg-gray-100"
+                                        >
+                                            {totalPages}
+                                        </button>
+                                    );
+                                }
+
+                                return pages;
+                            })()}
 
                             <button
                                 disabled={page === totalPages}
                                 onClick={() => goToPage(page + 1)}
-                                className={`px-3 py-1 rounded-lg border text-sm
-                                    ${page === totalPages ? "opacity-40" : "hover:bg-primary-100"}`}
+                                className={`px-4 py-2 rounded-lg border text-sm font-medium transition
+                                    ${page === totalPages 
+                                        ? "opacity-40 cursor-not-allowed bg-gray-100" 
+                                        : "hover:bg-gray-100 border-gray-300"
+                                    }`}
                             >
                                 Next
                             </button>

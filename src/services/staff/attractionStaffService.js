@@ -79,3 +79,5 @@ export const getAllAttractions = async () => {
   return res.data.items || [];
 };
 
+
+

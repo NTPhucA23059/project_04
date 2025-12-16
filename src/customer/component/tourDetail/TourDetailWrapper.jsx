@@ -27,17 +27,18 @@ export default function TourDetailWrapper() {
                 TourDetailID: s.tourDetailID,
                 DayNumber: s.dayNumber,
                 Title: s.title,
-                MealInfo: s.mealInfo,
                 Summary: s.summary,
+                Notes: s.notes,
                 Items: (s.items || []).map((it) => ({
                     ItemID: it.itemID,
                     TimeInfo: it.timeInfo,
                     Activity: it.activity,
-                    PlaceName: it.placeName,
                     Transportation: it.transportation,
-                    Cost: it.cost,
                     SortOrder: it.sortOrder,
-                    AttractionID: it.attractionID
+                    AttractionID: it.attractionID,
+                    AttractionName: it.attractionName,
+                    AttractionAddress: it.attractionAddress,
+                    CityName: it.cityName
                 }))
             }));
 
@@ -66,28 +67,35 @@ export default function TourDetailWrapper() {
                           Nation: payload.nation,
                           StartingLocation: payload.startingLocation,
                           Duration: payload.duration,
-                          CategoryID: payload.categoryID
+                          CategoryID: payload.categoryID,
+                          TourCities: (payload.tourCities || []).map(tc => ({
+                              CityID: tc.cityID,
+                              CityName: tc.cityName,
+                              CityCode: tc.cityCode,
+                              CityOrder: tc.cityOrder,
+                              StayDays: tc.stayDays
+                          }))
                       }
                     : null;
 
-                let detail = payload?.detail
+                // Lấy detail đầu tiên từ danh sách details (hoặc dùng getDetail() nếu có)
+                const detailData = payload?.detail || (payload?.details && payload.details.length > 0 ? payload.details[0] : null);
+                
+                let detail = detailData
                     ? {
-                          TourDetailID: payload.detail.tourDetailID,
-                          DepartureDate: payload.detail.departureDate,
-                          ArrivalDate: payload.detail.arrivalDate,
-                          NumberOfGuests: payload.detail.numberOfGuests,
-                          MinimumNumberOfGuests: payload.detail.minimumNumberOfGuests,
-                          BookedSeat: payload.detail.bookedSeat,
-                          UnitPrice: Number(payload.detail.unitPrice),
-                          FromLocation: payload.detail.fromLocation,
-                          ToLocation: payload.detail.toLocation,
-                          SeasonID: payload.detail.seasonID,
-                          Status: payload.detail.status,
-                          Schedules: mapSchedules(payload.detail.schedules || [])
+                          TourDetailID: detailData.tourDetailID,
+                          DepartureDate: detailData.departureDate,
+                          ArrivalDate: detailData.arrivalDate,
+                          NumberOfGuests: detailData.numberOfGuests,
+                          MinimumNumberOfGuests: detailData.minimumNumberOfGuests,
+                          BookedSeat: detailData.bookedSeat || 0,
+                          UnitPrice: Number(detailData.unitPrice),
+                          SeasonID: detailData.seasonID,
+                          Status: detailData.status,
+                          Schedules: mapSchedules(detailData.schedules || [])
                       }
                     : null;
 
-                // Fallback: nếu lịch trình chưa có trong payload, thử gọi API lịch trình riêng
                 if (detail?.TourDetailID && (!detail.Schedules || detail.Schedules.length === 0)) {
                     try {
                         const scRes = await api.get(
@@ -102,22 +110,39 @@ export default function TourDetailWrapper() {
                     }
                 }
 
-                // Map images từ payload.detail.images (nếu backend đã trả)
+                // Map images từ tour.images (ảnh gallery của tour, không phải của tourDetail)
                 const images =
-                    (payload?.detail?.images || []).map((img) => ({
+                    (payload?.images || []).map((img) => ({
                         ImageID: img.imageID,
                         ImageUrl: toAbsoluteUrl(img.imageUrl),
-                        Caption: img.caption,
-                        SortOrder: img.sortOrder
+                        Caption: img.caption || "",
+                        SortOrder: img.sortOrder || 0
                     })) || [];
+
+                // Map category from payload
+                const category = payload?.categoryName
+                    ? {
+                        CategoryID: payload.categoryID,
+                        CategoryName: payload.categoryName
+                    }
+                    : null;
+                
+                // Map season from detailData
+                const season = detailData?.seasonID
+                    ? {
+                        SeasonID: detailData.seasonID,
+                        SeasonName: detailData.seasonName || null,
+                        Description: detailData.seasonDescription || null
+                    }
+                    : null;
 
                 if (isMounted) {
                     setData({
                         tour,
                         details: detail,
                         images,
-                        category: null, // TODO: bind real category nếu backend trả
-                        season: null,   // TODO: bind real season nếu cần
+                        category,
+                        season,
                         reviews: []     // TODO: bind reviews khi có API
                     });
                 }

@@ -10,8 +10,8 @@ export default function CityFormModal({
   const [form, setForm] = useState({
     CityCode: "",
     CityName: "",
-    Country: "Việt Nam",
-    Description: "",
+    Country: "Viet Nam",
+   
     Status: 1,
   });
 
@@ -23,16 +23,15 @@ export default function CityFormModal({
       setForm({
         CityCode: initial?.CityCode ?? "",
         CityName: initial?.CityName ?? "",
-        Country: initial?.Country ?? "Việt Nam",
-        Description: initial?.Description ?? "",
+        Country: initial?.Country ?? "Viet Nam",
         Status: initial?.Status ?? 1,
       });
     } else {
       setForm({
         CityCode: "",
         CityName: "",
-        Country: "Việt Nam",
-        Description: "",
+        Country: "Viet Nam",
+        
         Status: 1,
       });
     }
@@ -75,10 +74,7 @@ export default function CityFormModal({
       e.Country = "Country is required";
     }
 
-    // --- Description --- (optional but validate if provided)
-    if (form.Description && form.Description.length > 255) {
-      e.Description = "Description cannot exceed 255 characters";
-    }
+
 
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -112,7 +108,7 @@ export default function CityFormModal({
               setForm({ ...form, CityCode: e.target.value.toUpperCase() })
             }
             placeholder="E.g: HCM, HN, DN"
-            disabled={!!initial} // Disable when editing
+            disabled={!!initial}
           />
           {errors.CityCode && (
             <p className="text-red-600 text-xs mt-1">{errors.CityCode}</p>
@@ -159,27 +155,7 @@ export default function CityFormModal({
           )}
         </div>
 
-        {/* Description */}
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-neutral-700 mb-1.5">
-            Description
-          </label>
-          <textarea
-            rows={3}
-            className={`w-full border rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary-200 focus:border-primary-500 outline-none transition resize-none ${
-              errors.Description ? "border-red-500" : "border-neutral-200"
-            }`}
-            value={form.Description}
-            onChange={(e) =>
-              setForm({ ...form, Description: e.target.value })
-            }
-            placeholder="Brief description about the city..."
-          />
-          {errors.Description && (
-            <p className="text-red-600 text-xs mt-1">{errors.Description}</p>
-          )}
-        </div>
-
+       
         {/* Status */}
         <div className="mb-6">
           <label className="block text-sm font-medium text-neutral-700 mb-1.5">
@@ -217,5 +193,6 @@ export default function CityFormModal({
     </div>
   );
 }
+
 
 

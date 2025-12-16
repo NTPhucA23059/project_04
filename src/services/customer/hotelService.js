@@ -31,3 +31,5 @@ export const getHotelsByCity = async (cityID) => {
   return res.data.items || [];
 };
 
+
+

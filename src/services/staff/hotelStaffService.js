@@ -65,3 +65,5 @@ export const deleteHotel = async (id) => {
 };
 
 
+
+

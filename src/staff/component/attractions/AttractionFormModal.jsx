@@ -11,72 +11,31 @@ export default function AttractionFormModal({
   const [form, setForm] = useState({
     CityID: "",
     Name: "",
-    Description: "",
     Address: "",
-    Rating: "",
-    ImageUrl: "",
     Status: 1,
   });
 
   const [errors, setErrors] = useState({});
-  const [imageFile, setImageFile] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
 
   useEffect(() => {
     if (initial) {
       setForm({
         CityID: initial?.CityID ?? "",
         Name: initial?.Name ?? "",
-        Description: initial?.Description ?? "",
         Address: initial?.Address ?? "",
-        Rating: initial?.Rating ?? "",
-        ImageUrl: initial?.ImageUrl ?? "",
         Status: initial?.Status ?? 1,
       });
-      setImagePreview(initial?.ImageUrl || null);
-      setImageFile(null);
     } else {
       setForm({
         CityID: "",
         Name: "",
-        Description: "",
         Address: "",
-        Rating: "",
-        ImageUrl: "",
         Status: 1,
       });
-      setImagePreview(null);
-      setImageFile(null);
     }
     setErrors({});
   }, [initial, open]);
 
-  // Handle image file selection
-  const handleImageChange = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        setErrors({ ...errors, ImageUrl: "Please select an image file" });
-        return;
-      }
-      // Validate file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        setErrors({ ...errors, ImageUrl: "Image size must not exceed 5MB" });
-        return;
-      }
-      
-      setImageFile(file);
-      setErrors({ ...errors, ImageUrl: null });
-      
-      // Create preview
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
 
   // ============================
   // VALIDATION
@@ -96,27 +55,9 @@ export default function AttractionFormModal({
       e.Name = "Name must be at least 3 characters";
     }
 
-    // --- Description --- (optional but validate if provided)
-    if (form.Description && form.Description.length > 5000) {
-      e.Description = "Description cannot exceed 5000 characters";
-    }
-
     // --- Address --- (optional)
     if (form.Address && form.Address.length > 255) {
       e.Address = "Address cannot exceed 255 characters";
-    }
-
-    // --- Rating --- (optional, but validate range if provided)
-    if (form.Rating && form.Rating !== "") {
-      const rating = Number(form.Rating);
-      if (isNaN(rating) || rating < 0 || rating > 5) {
-        e.Rating = "Rating must be between 0 and 5";
-      }
-    }
-
-    // --- ImageUrl --- (optional, but validate format if provided)
-    if (form.ImageUrl && form.ImageUrl.length > 255) {
-      e.ImageUrl = "Image URL cannot exceed 255 characters";
     }
 
     setErrors(e);
@@ -129,11 +70,9 @@ export default function AttractionFormModal({
     const payload = {
       ...form,
       CityID: Number(form.CityID),
-      Rating: form.Rating ? Number(form.Rating) : null,
     };
     
-    // Pass image file separately
-    onSubmit(payload, imageFile);
+    onSubmit(payload);
   };
 
   if (!open) return null;
@@ -188,25 +127,6 @@ export default function AttractionFormModal({
             )}
           </div>
 
-          {/* Description */}
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-neutral-700 mb-1.5">
-              Description
-            </label>
-            <textarea
-              rows={4}
-              className={`w-full border rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary-200 focus:border-primary-500 outline-none transition resize-none ${
-                errors.Description ? "border-red-500" : "border-neutral-200"
-              }`}
-              value={form.Description}
-              onChange={(e) => setForm({ ...form, Description: e.target.value })}
-              placeholder="Detailed description about the attraction..."
-            />
-            {errors.Description && (
-              <p className="text-red-600 text-xs mt-1">{errors.Description}</p>
-            )}
-          </div>
-
           {/* Address */}
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-neutral-700 mb-1.5">
@@ -223,101 +143,6 @@ export default function AttractionFormModal({
             {errors.Address && (
               <p className="text-red-600 text-xs mt-1">{errors.Address}</p>
             )}
-          </div>
-
-          {/* Rating */}
-          <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-1.5">
-              Rating (0-5)
-            </label>
-            <input
-              type="number"
-              min="0"
-              max="5"
-              step="0.1"
-              className={`w-full border rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary-200 focus:border-primary-500 outline-none transition ${
-                errors.Rating ? "border-red-500" : "border-neutral-200"
-              }`}
-              value={form.Rating}
-              onChange={(e) => setForm({ ...form, Rating: e.target.value })}
-              placeholder="E.g: 4.5"
-            />
-            {errors.Rating && (
-              <p className="text-red-600 text-xs mt-1">{errors.Rating}</p>
-            )}
-          </div>
-
-          {/* Image Upload */}
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-neutral-700 mb-1.5">
-              Image
-            </label>
-            <div className="space-y-2">
-              <div className="border-2 border-dashed border-neutral-200 rounded-lg p-4 bg-neutral-50">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="w-full text-sm text-neutral-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
-                />
-                {errors.ImageUrl && (
-                  <p className="text-red-600 text-xs mt-1">{errors.ImageUrl}</p>
-                )}
-                <p className="text-xs text-neutral-500 mt-2">
-                  Supported: JPG, PNG, GIF. Max size: 5MB
-                </p>
-              </div>
-              
-              {/* Image Preview */}
-              {(imagePreview || form.ImageUrl) && (
-                <div className="mt-3">
-                  <p className="text-xs text-neutral-600 mb-2">Preview:</p>
-                  <div className="relative inline-block">
-                    <img
-                      src={imagePreview || form.ImageUrl}
-                      alt="Preview"
-                      className="h-32 w-auto rounded-lg border border-neutral-200 object-cover"
-                    />
-                    {imageFile && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setImageFile(null);
-                          setImagePreview(null);
-                          setForm({ ...form, ImageUrl: "" });
-                        }}
-                        className="absolute top-1 right-1 h-6 w-6 flex items-center justify-center rounded-full bg-red-600 text-white text-xs shadow-lg hover:bg-red-700"
-                        title="Remove image"
-                      >
-                        ×
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-              
-              {/* Fallback: URL input (optional) */}
-              <div className="mt-2">
-                <label className="block text-xs text-neutral-500 mb-1">
-                  Or enter image URL (if not uploading file):
-                </label>
-                <input
-                  type="text"
-                  className={`w-full border rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-primary-200 focus:border-primary-500 outline-none transition ${
-                    errors.ImageUrl ? "border-red-500" : "border-neutral-200"
-                  }`}
-                  value={form.ImageUrl}
-                  onChange={(e) => {
-                    setForm({ ...form, ImageUrl: e.target.value });
-                    if (e.target.value) {
-                      setImageFile(null);
-                      setImagePreview(e.target.value);
-                    }
-                  }}
-                  placeholder="E.g: /images/ba-na-hills.jpg or https://..."
-                />
-              </div>
-            </div>
           </div>
 
           {/* Status */}
@@ -356,5 +181,8 @@ export default function AttractionFormModal({
     </div>
   );
 }
+
+
+
 
 

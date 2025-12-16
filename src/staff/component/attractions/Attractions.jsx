@@ -8,7 +8,6 @@ import {
   updateAttraction,
   deleteAttraction,
 } from "../../../services/staff/attractionStaffService";
-import api from "../../../services/api";
 import { toast } from "../../shared/toast/toast";
 import ConfirmDialog from "../../shared/confirm/ConfirmDialog";
 
@@ -39,16 +38,7 @@ export default function Attractions() {
   
   // Sorting
   const [sortField, setSortField] = useState(null); 
-  const [sortDirection, setSortDirection] = useState('asc'); 
-
-  // Convert relative URL to absolute URL
-  const toAbsoluteUrl = (url) => {
-    if (!url) return "";
-    if (url.startsWith("http://") || url.startsWith("https://")) return url;
-    const base = (api.defaults.baseURL || "").replace(/\/$/, "");
-    const normalized = url.startsWith("/") ? url : `/${url}`;
-    return base ? `${base}${normalized}` : normalized;
-  };
+  const [sortDirection, setSortDirection] = useState('asc');
 
   // ============================
   // LOAD CITIES (for dropdown)
@@ -88,15 +78,12 @@ export default function Attractions() {
         cityID: selectedCity ? Number(selectedCity) : undefined,
       });
 
-      // Map response data to component format
+      // Map response data to component format (only fields in entity)
       const items = res.items?.map((x) => ({
         AttractionID: x.attractionID,
         CityID: x.cityID,
         Name: x.name,
-        Description: x.description,
         Address: x.address,
-        Rating: x.rating,
-        ImageUrl: toAbsoluteUrl(x.imageUrl), // Convert to absolute URL
         Status: x.status,
         CityName: x.cityName || "", // Backend should include cityName in response
         CreatedAt: x.createdAt,
@@ -170,7 +157,7 @@ export default function Attractions() {
     });
   };
 
-  const handleSave = async (data, imageFile) => {
+  const handleSave = async (data) => {
     try {
       setLoading(true);
       setError("");
@@ -179,48 +166,25 @@ export default function Attractions() {
         // Update: không gửi cityID vì không được phép đổi city
         const updatePayload = {
           name: data.Name,
-          description: data.Description || null,
           address: data.Address || null,
-          rating: data.Rating || null,
-          imageUrl: data.ImageUrl || null,
           status: data.Status,
         };
         
-        // Update: if image file provided, use multipart, otherwise use JSON
-        if (imageFile) {
-          await updateAttractionMultipart({
-            id: editingItem.AttractionID,
-            attraction: updatePayload,
-            image: imageFile,
-          });
-        } else {
-          await updateAttraction(editingItem.AttractionID, updatePayload);
-        }
+        await updateAttraction(editingItem.AttractionID, updatePayload);
         toast.success("Attraction updated successfully");
       } else {
         // Create: gửi đầy đủ bao gồm cityID
         const createPayload = {
           cityID: data.CityID,
           name: data.Name,
-          description: data.Description || null,
           address: data.Address || null,
-          rating: data.Rating || null,
-          imageUrl: data.ImageUrl || null,
           status: data.Status,
         };
         
-        // Create: if image file provided, use multipart, otherwise use JSON
-        if (imageFile) {
-          await createAttraction({
-            attraction: createPayload,
-            image: imageFile,
-          });
-        } else {
-          await createAttraction({
-            attraction: createPayload,
-            image: null,
-          });
-        }
+        await createAttraction({
+          attraction: createPayload,
+          image: null,
+        });
         toast.success("Attraction created successfully");
       }
       
@@ -260,8 +224,8 @@ export default function Attractions() {
       if (aVal == null) aVal = '';
       if (bVal == null) bVal = '';
       
-      // Handle numbers (Rating, Status)
-      if (sortField === 'Rating' || sortField === 'Status') {
+      // Handle numbers (Status)
+      if (sortField === 'Status') {
         aVal = Number(aVal) || 0;
         bVal = Number(bVal) || 0;
       } else {
@@ -350,7 +314,6 @@ export default function Attractions() {
           <thead className="bg-primary-50 border-b border-primary-200">
             <tr>
               <th className="px-4 py-3 text-center font-semibold text-neutral-700 w-16">#</th>
-              <th className="px-4 py-3 text-center font-semibold text-neutral-700 w-20">Image</th>
               <th 
                 className="px-4 py-3 text-left font-semibold text-neutral-700 cursor-pointer hover:bg-primary-100 transition select-none"
                 onClick={() => handleSort('Name')}
@@ -384,21 +347,6 @@ export default function Attractions() {
               <th className="px-4 py-3 text-left font-semibold text-neutral-700">Address</th>
               <th 
                 className="px-4 py-3 text-left font-semibold text-neutral-700 cursor-pointer hover:bg-primary-100 transition select-none"
-                onClick={() => handleSort('Rating')}
-              >
-                <div className="flex items-center gap-2">
-                  <span>Rating</span>
-                  {sortField === 'Rating' ? (
-                    <span className="text-primary-600 font-bold">
-                      {sortDirection === 'asc' ? '↑' : '↓'}
-                    </span>
-                  ) : (
-                    <span className="text-neutral-400 text-xs">↕</span>
-                  )}
-                </div>
-              </th>
-              <th 
-                className="px-4 py-3 text-left font-semibold text-neutral-700 cursor-pointer hover:bg-primary-100 transition select-none"
                 onClick={() => handleSort('Status')}
               >
                 <div className="flex items-center gap-2">
@@ -419,7 +367,7 @@ export default function Attractions() {
           <tbody>
             {loading && (
               <tr>
-                <td colSpan="8" className="py-8 text-center text-neutral-500">Loading...</td>
+                <td colSpan="6" className="py-8 text-center text-neutral-500">Loading...</td>
               </tr>
             )}
             {!loading && pageData.map((attr, index) => (
@@ -427,49 +375,11 @@ export default function Attractions() {
                 <td className="px-4 py-3 text-center text-neutral-500 font-medium">
                   {startIndex + index + 1}
                 </td>
-                <td className="px-4 py-3 text-center">
-                  {attr.ImageUrl ? (
-                    <img
-                      src={attr.ImageUrl}
-                      alt={attr.Name}
-                      className="w-16 h-16 object-cover rounded-lg border border-neutral-200"
-                      onError={(e) => {
-                        e.target.onerror = null; // Prevent infinite loop
-                        e.target.style.display = 'none';
-                        const parent = e.target.parentElement;
-                        if (parent) {
-                          const placeholder = parent.querySelector('.image-placeholder');
-                          if (placeholder) {
-                            placeholder.classList.remove('hidden');
-                          }
-                        }
-                      }}
-                    />
-                  ) : null}
-                  <div className={`image-placeholder w-16 h-16 bg-neutral-100 rounded-lg border border-neutral-200 flex items-center justify-center ${attr.ImageUrl ? 'hidden' : ''}`}>
-                    <span className="text-neutral-400 text-xs">No Image</span>
-                  </div>
-                </td>
                 <td className="px-4 py-3">
                   <div className="font-semibold text-neutral-900">{attr.Name}</div>
-                  {attr.Description && (
-                    <div className="text-xs text-neutral-500 mt-1 line-clamp-1">
-                      {attr.Description}
-                    </div>
-                  )}
                 </td>
                 <td className="px-4 py-3 text-neutral-700">{attr.CityName || "-"}</td>
                 <td className="px-4 py-3 text-neutral-600">{attr.Address || "-"}</td>
-                <td className="px-4 py-3">
-                  {attr.Rating ? (
-                    <div className="flex items-center gap-1">
-                      <span className="text-yellow-500">★</span>
-                      <span className="font-medium text-neutral-700">{attr.Rating}</span>
-                    </div>
-                  ) : (
-                    <span className="text-neutral-400">-</span>
-                  )}
-                </td>
                 <td className="px-4 py-3">
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                     attr.Status === 1 
@@ -501,7 +411,7 @@ export default function Attractions() {
 
             {!loading && pageData.length === 0 && (
               <tr>
-                <td colSpan="8" className="py-6 text-center text-neutral-500">
+                <td colSpan="6" className="py-6 text-center text-neutral-500">
                   No attractions found.
                 </td>
               </tr>
@@ -612,5 +522,7 @@ export default function Attractions() {
     </div>
   );
 }
+
+
 
 

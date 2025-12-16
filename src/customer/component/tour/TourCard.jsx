@@ -16,10 +16,10 @@ export default function TourCard({ tour, schedule }) {
             minimumFractionDigits: 0,
         }) || "$0";
 
-    // Fallbacks
+    // Fallbacks - ưu tiên TourImg từ cột database, sau đó mới dùng Images
     const imageSrc =
-        tour.Images?.[0] ||
         tour.TourImg ||
+        (tour.Images && tour.Images.length > 0 ? (tour.Images[0].ImageUrl || tour.Images[0]) : null) ||
         "https://placehold.co/600x400?text=No+Image";
 
     const price = tour.PriceFrom || tour.Price || 0;
@@ -70,32 +70,40 @@ export default function TourCard({ tour, schedule }) {
                         </span>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                        <PaperAirplaneIcon className="w-4 h-4 text-primary-500" />
-                        <span>Transport:</span>
-                        <span className="font-medium">
-                            {tour.Transportation || "N/A"}
-                        </span>
-                    </div>
+                    {tour.Nation && (
+                        <div className="flex items-center gap-2">
+                            <MapPinIcon className="w-4 h-4 text-primary-500" />
+                            <span>Country:</span>
+                            <span className="font-medium">{tour.Nation}</span>
+                        </div>
+                    )}
                 </div>
 
                 {/* Schedule preview */}
-                <div className="flex items-center gap-2 mb-2 flex-wrap">
-                    <span className="text-sm text-neutral-700">Schedule:</span>
+                {schedulePreview.length > 0 && (
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
+                        <span className="text-sm text-neutral-700">Schedule:</span>
+                        {schedulePreview.map((item, idx) => (
+                            <span
+                                key={item.ScheduleID || idx}
+                                className="px-2 py-0.5 border border-gray-300 rounded text-gray-700 font-medium text-xs"
+                            >
+                                Day {item.DayNumber}: {item.Title || item.Summary || "N/A"}
+                            </span>
+                        ))}
+                    </div>
+                )}
 
-                    {schedulePreview.length === 0 && (
-                        <span className="text-sm text-neutral-500">Updating...</span>
-                    )}
-
-                    {schedulePreview.map((item, idx) => (
-                        <span
-                            key={idx}
-                            className="px-3 py-0.5 border border-primary-500 rounded-md text-primary-600 font-medium text-sm"
-                        >
-                            Day {item.DayNumber}: {item.Title || "N/A"}
+                {/* Route Cities preview */}
+                {tour.TourCities && tour.TourCities.length > 0 && (
+                    <div className="flex items-center gap-2 mb-2 flex-wrap text-sm text-neutral-600">
+                        <MapPinIcon className="w-4 h-4 text-primary-500" />
+                        <span>
+                            {tour.TourCities.slice(0, 3).map(c => c.CityName).join(", ")}
+                            {tour.TourCities.length > 3 && ` +${tour.TourCities.length - 3} more`}
                         </span>
-                    ))}
-                </div>
+                    </div>
+                )}
 
                 {/* Bottom price + button */}
                 <div className="flex items-end justify-between mt-auto">

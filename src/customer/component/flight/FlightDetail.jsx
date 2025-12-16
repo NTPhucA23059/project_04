@@ -5,6 +5,15 @@ import { getFlightById } from "../../../services/customer/flightService";
 import { getAllCities } from "../../../services/customer/cityService";
 import { formatPrice } from "./formatPrice";
 import { MdFlight } from "react-icons/md";
+import api from "../../../services/api";
+
+// Convert relative URL to absolute URL
+const toAbsoluteUrl = (url) => {
+  if (!url) return "";
+  if (/^https?:\/\//.test(url)) return url;
+  const base = (api.defaults.baseURL || "").replace(/\/$/, "");
+  return `${base}/${url.replace(/^\/+/, "")}`;
+};
 
 export default function FlightDetail() {
   function formatDateTime(value) {
@@ -81,9 +90,24 @@ export default function FlightDetail() {
     return <p className="text-center mt-20">Flight not found</p>;
   }
 
+  // Get image URL - check both imageURL and imageUrl for compatibility
+  const imageSrc = flight.imageURL || flight.imageUrl;
+  const imageUrl = imageSrc ? toAbsoluteUrl(imageSrc) : null;
+
   return (
     <div className="pt-24 bg-neutral-50 min-h-screen">
       <div className="max-w-5xl mx-auto px-6 py-8 space-y-6">
+        {/* Flight Image */}
+        {imageUrl && (
+          <div className="rounded-2xl overflow-hidden border border-neutral-200 shadow-sm">
+            <img
+              src={imageUrl}
+              alt={flight.airline}
+              className="w-full h-64 md:h-80 object-cover"
+            />
+          </div>
+        )}
+
         {/* Summary header */}
         <div className="rounded-2xl bg-white border border-neutral-200 shadow-sm p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>

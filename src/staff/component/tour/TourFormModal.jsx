@@ -54,16 +54,23 @@ export default function TourFormModal({
               <div className="space-y-3">
                 <div>
                   <label className="text-xs text-neutral-500">Tour Code</label>
-                  <input
-                    className={`w-full border px-3 py-2 rounded-lg mt-1 focus:ring-2 focus:ring-primary-500 ${
-                      errors.tourCode ? "border-red-500" : "border-neutral-200"
-                    }`}
-                    value={form.tourCode}
-                    onChange={(e) =>
-                      onChange({ ...form, tourCode: e.target.value })
-                    }
-                    placeholder="e.g. TOUR001"
-                  />
+                  <div className="flex items-center mt-1">
+                    <span className="px-3 py-2 bg-neutral-100 border border-r-0 border-neutral-200 rounded-l-lg text-sm text-neutral-600">
+                      TOUR-
+                    </span>
+                    <input
+                      className={`flex-1 border px-3 py-2 rounded-r-lg focus:ring-2 focus:ring-primary-500 ${
+                        errors.tourCode ? "border-red-500" : "border-neutral-200"
+                      }`}
+                      value={form.tourCode}
+                      onChange={(e) => {
+                        // Chỉ cho phép nhập chữ, số, không có ký tự đặc biệt
+                        const value = e.target.value.replace(/[^a-zA-Z0-9]/g, '');
+                        onChange({ ...form, tourCode: value });
+                      }}
+                      placeholder="001"
+                    />
+                  </div>
                   {errors.tourCode && (
                     <p className="text-xs text-red-500 mt-1">
                       {errors.tourCode}
@@ -97,21 +104,48 @@ export default function TourFormModal({
                       onChange={(e) =>
                         onChange({ ...form, nation: e.target.value })
                       }
-                      placeholder="Vietnam"
+                      placeholder="Viet Nam"
+                      defaultValue="Viet Nam"
                     />
                   </div>
                   <div>
                     <label className="text-xs text-neutral-500">
                       Duration
                     </label>
-                    <input
-                      className="w-full border border-neutral-200 px-3 py-2 rounded-lg mt-1 focus:ring-2 focus:ring-primary-500"
-                      value={form.duration}
-                      onChange={(e) =>
-                        onChange({ ...form, duration: e.target.value })
-                      }
-                      placeholder="3 days 2 nights"
-                    />
+                    <div className="grid grid-cols-2 gap-2 mt-1">
+                      <div>
+                        <select
+                          className="w-full border border-neutral-200 px-3 py-2 rounded-lg focus:ring-2 focus:ring-primary-500"
+                          value={form.days || ""}
+                          onChange={(e) =>
+                            onChange({ ...form, days: e.target.value })
+                          }
+                        >
+                          <option value="">Days</option>
+                          {Array.from({ length: 30 }, (_, i) => i + 1).map((num) => (
+                            <option key={num} value={num}>
+                              {num} {num === 1 ? "day" : "days"}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <select
+                          className="w-full border border-neutral-200 px-3 py-2 rounded-lg focus:ring-2 focus:ring-primary-500"
+                          value={form.nights || ""}
+                          onChange={(e) =>
+                            onChange({ ...form, nights: e.target.value })
+                          }
+                        >
+                          <option value="">Nights</option>
+                          {Array.from({ length: 30 }, (_, i) => i + 1).map((num) => (
+                            <option key={num} value={num}>
+                              {num} {num === 1 ? "night" : "nights"}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
                   </div>
                 </div>
                 <div>

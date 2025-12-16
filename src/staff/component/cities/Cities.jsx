@@ -17,7 +17,7 @@ export default function Cities() {
   const [editingItem, setEditingItem] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  
+
   // Confirmation dialog
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
@@ -31,7 +31,7 @@ export default function Cities() {
   const [pageSize, setPageSize] = useState(5);
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
-  
+
   // Sorting
   const [sortField, setSortField] = useState(null); // 'CityCode', 'CityName', 'Country', 'Status'
   const [sortDirection, setSortDirection] = useState('asc'); // 'asc' or 'desc'
@@ -43,7 +43,7 @@ export default function Cities() {
     try {
       setLoading(true);
       setError("");
-      
+
       const res = await searchCities({
         page: currentPage - 1,
         size: pageSize,
@@ -56,7 +56,6 @@ export default function Cities() {
         CityCode: x.cityCode,
         CityName: x.cityName,
         Country: x.country,
-        Description: x.description,
         Status: x.status,
         CreatedAt: x.createdAt,
         UpdatedAt: x.updatedAt,
@@ -127,21 +126,18 @@ export default function Cities() {
     try {
       setLoading(true);
       setError("");
-      
+
       const payload = {
         cityCode: data.CityCode,
         cityName: data.CityName,
-        country: data.Country || "Việt Nam",
-        description: data.Description,
+        country: data.Country || "Viet Nam",
         status: data.Status,
       };
 
       if (editingItem) {
-        // Update: không gửi cityCode vì không được phép đổi
         const updatePayload = {
           cityName: payload.cityName,
           country: payload.country,
-          description: payload.description,
           status: payload.status,
         };
         await updateCity(editingItem.CityID, updatePayload);
@@ -150,7 +146,7 @@ export default function Cities() {
         await createCity(payload);
         toast.success("City created successfully");
       }
-      
+
       setModalOpen(false);
       setEditingItem(null);
       loadData();
@@ -178,15 +174,15 @@ export default function Cities() {
   // Apply sorting to cities
   const sortedCities = React.useMemo(() => {
     if (!sortField) return cities;
-    
+
     return [...cities].sort((a, b) => {
       let aVal = a[sortField];
       let bVal = b[sortField];
-      
+
       // Handle null/undefined
       if (aVal == null) aVal = '';
       if (bVal == null) bVal = '';
-      
+
       // Handle numbers (Status)
       if (sortField === 'Status') {
         aVal = Number(aVal);
@@ -196,7 +192,7 @@ export default function Cities() {
         aVal = String(aVal).toLowerCase();
         bVal = String(bVal).toLowerCase();
       }
-      
+
       if (sortDirection === 'asc') {
         return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
       } else {
@@ -265,7 +261,7 @@ export default function Cities() {
           <thead className="bg-primary-50 border-b border-primary-200">
             <tr>
               <th className="px-4 py-3 text-center font-semibold text-neutral-700 w-16">#</th>
-              <th 
+              <th
                 className="px-4 py-3 text-left font-semibold text-neutral-700 cursor-pointer hover:bg-primary-100 transition select-none"
                 onClick={() => handleSort('CityCode')}
               >
@@ -280,7 +276,7 @@ export default function Cities() {
                   )}
                 </div>
               </th>
-              <th 
+              <th
                 className="px-4 py-3 text-left font-semibold text-neutral-700 cursor-pointer hover:bg-primary-100 transition select-none"
                 onClick={() => handleSort('CityName')}
               >
@@ -295,7 +291,7 @@ export default function Cities() {
                   )}
                 </div>
               </th>
-              <th 
+              <th
                 className="px-4 py-3 text-left font-semibold text-neutral-700 cursor-pointer hover:bg-primary-100 transition select-none"
                 onClick={() => handleSort('Country')}
               >
@@ -310,8 +306,7 @@ export default function Cities() {
                   )}
                 </div>
               </th>
-              <th className="px-4 py-3 text-left font-semibold text-neutral-700">Description</th>
-              <th 
+              <th
                 className="px-4 py-3 text-left font-semibold text-neutral-700 cursor-pointer hover:bg-primary-100 transition select-none"
                 onClick={() => handleSort('Status')}
               >
@@ -344,13 +339,11 @@ export default function Cities() {
                 <td className="px-4 py-3 text-neutral-900 font-medium">{city.CityCode}</td>
                 <td className="px-4 py-3 text-neutral-700 font-semibold">{city.CityName}</td>
                 <td className="px-4 py-3 text-neutral-600">{city.Country || "-"}</td>
-                <td className="px-4 py-3 text-neutral-600">{city.Description || "-"}</td>
                 <td className="px-4 py-3">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    city.Status === 1 
-                      ? "bg-green-100 text-green-700" 
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${city.Status === 1
+                      ? "bg-green-100 text-green-700"
                       : "bg-red-100 text-red-700"
-                  }`}>
+                    }`}>
                     {city.Status === 1 ? "Active" : "Inactive"}
                   </span>
                 </td>
@@ -414,11 +407,10 @@ export default function Cities() {
           <button
             onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}
             disabled={currentPage <= 1}
-            className={`px-3 py-1.5 rounded-lg border transition ${
-              currentPage <= 1
+            className={`px-3 py-1.5 rounded-lg border transition ${currentPage <= 1
                 ? "bg-neutral-100 text-neutral-400 border-neutral-200 cursor-not-allowed"
                 : "bg-white border-neutral-200 text-neutral-700 hover:bg-primary-50 hover:border-primary-300"
-            }`}
+              }`}
           >
             Previous
           </button>
@@ -429,11 +421,10 @@ export default function Cities() {
               <button
                 key={i}
                 onClick={() => setCurrentPage(i + 1)}
-                className={`px-3 py-1.5 rounded-lg border transition ${
-                  currentPage === i + 1
+                className={`px-3 py-1.5 rounded-lg border transition ${currentPage === i + 1
                     ? "bg-primary-600 text-white border-primary-600 shadow-sm"
                     : "bg-white border-neutral-200 text-neutral-700 hover:bg-primary-50 hover:border-primary-300"
-                }`}
+                  }`}
               >
                 {i + 1}
               </button>
@@ -445,11 +436,10 @@ export default function Cities() {
               currentPage < totalPages && setCurrentPage(currentPage + 1)
             }
             disabled={currentPage >= totalPages}
-            className={`px-3 py-1.5 rounded-lg border transition ${
-              currentPage >= totalPages
+            className={`px-3 py-1.5 rounded-lg border transition ${currentPage >= totalPages
                 ? "bg-neutral-100 text-neutral-400 border-neutral-200 cursor-not-allowed"
                 : "bg-white border-neutral-200 text-neutral-700 hover:bg-primary-50 hover:border-primary-300"
-            }`}
+              }`}
           >
             Next
           </button>
@@ -485,5 +475,7 @@ export default function Cities() {
     </div>
   );
 }
+
+
 
 

@@ -25,6 +25,7 @@ export default function TourFilters({ onChange = () => { } }) {
     const [selectedBudget, setSelectedBudget] = useState(null);
     const [selectedRating, setSelectedRating] = useState(null);
     const [categories, setCategories] = useState([]);
+    const [seasons, setSeasons] = useState([]);
 
     const budgetRanges = [
         { id: 1, min: 0, max: 200 },
@@ -45,6 +46,18 @@ export default function TourFilters({ onChange = () => { } }) {
             }
         }
         loadCategories();
+    }, []);
+
+    useEffect(() => {
+        async function loadSeasons() {
+            try {
+                const list = await fetchSeasons();
+                setSeasons(list || []);
+            } catch (e) {
+                setSeasons([]);
+            }
+        }
+        loadSeasons();
     }, []);
 
     useEffect(() => {
@@ -83,7 +96,24 @@ export default function TourFilters({ onChange = () => { } }) {
             <Disclosure>
                 {({ open }) => (
                     <FilterSection title="Seasons" icon={SunIcon} open={open}>
-                        <p className="text-sm text-neutral-500">Coming soon</p>
+                        {seasons.length === 0 ? (
+                            <p className="text-sm text-neutral-500">No seasons available</p>
+                        ) : (
+                            seasons.map(season => (
+                                <FilterToggle
+                                    key={season.seasonID || season.SeasonID}
+                                    checked={selectedSeason === (season.seasonID || season.SeasonID)}
+                                    label={season.seasonName || season.SeasonName}
+                                    onChange={() =>
+                                        setSelectedSeason(prev =>
+                                            prev === (season.seasonID || season.SeasonID) 
+                                                ? null 
+                                                : (season.seasonID || season.SeasonID)
+                                        )
+                                    }
+                                />
+                            ))
+                        )}
                     </FilterSection>
                 )}
             </Disclosure>

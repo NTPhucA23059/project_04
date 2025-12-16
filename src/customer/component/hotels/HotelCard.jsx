@@ -1,8 +1,24 @@
 import { useNavigate } from "react-router-dom";
 import { FaStar } from "react-icons/fa";
+import api from "../../../services/api";
+
+// Convert relative URL to absolute URL
+const toAbsoluteUrl = (url) => {
+    if (!url) return "";
+    if (/^https?:\/\//.test(url)) return url;
+    const base = (api.defaults.baseURL || "").replace(/\/$/, "");
+    return `${base}/${url.replace(/^\/+/, "")}`;
+};
 
 export default function HotelCard({ hotel }) {
     const navigate = useNavigate();
+
+    // Get image URL with fallback
+    const imageSrc = hotel.imageUrl 
+        ? toAbsoluteUrl(hotel.imageUrl)
+        : (hotel.images && hotel.images.length > 0 
+            ? toAbsoluteUrl(hotel.images[0].imageUrl || hotel.images[0].url)
+            : "https://placehold.co/600x400?text=No+Image");
 
     return (
         <div
@@ -14,7 +30,7 @@ export default function HotelCard({ hotel }) {
             {/* IMAGE */}
             <div className="relative w-full h-56 overflow-hidden rounded-t-2xl">
                 <img
-                    src={hotel.imageUrl}
+                    src={imageSrc}
                     alt={hotel.hotelName}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                 />

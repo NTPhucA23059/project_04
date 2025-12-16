@@ -17,7 +17,7 @@ export default function TourImportantNotes() {
     };
 
     return (
-        <section className="max-w-7xl mx-auto px-4 mt-12 space-y-4">
+        <section className="max-w-full mx-auto px-4 mt-12 space-y-4">
 
             {/* ===== TITLE ===== */}
             <div className="mb-6">

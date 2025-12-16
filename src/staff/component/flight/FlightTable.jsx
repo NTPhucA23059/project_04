@@ -1,4 +1,14 @@
 import React from "react";
+import api from "../../../services/api";
+
+// Convert relative URL to absolute URL
+const toAbsoluteUrl = (url) => {
+  if (!url) return "";
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  const base = (api.defaults.baseURL || "").replace(/\/$/, "");
+  const normalized = url.startsWith("/") ? url : `/${url}`;
+  return base ? `${base}${normalized}` : normalized;
+};
 
 export default function FlightTable({
   flights,
@@ -17,6 +27,9 @@ export default function FlightTable({
       <table className="w-full text-sm">
         <thead className="bg-primary-50 border-b border-primary-200">
           <tr>
+            <th className="px-4 py-3 text-left font-semibold text-neutral-700 w-20">
+              Image
+            </th>
             <th className="px-4 py-3 text-left font-semibold text-neutral-700">
               Code
             </th>
@@ -47,7 +60,7 @@ export default function FlightTable({
           {loading && (
             <tr>
               <td
-                colSpan="8"
+                colSpan="9"
                 className="px-4 py-8 text-center text-neutral-500"
               >
                 Loading...
@@ -57,7 +70,7 @@ export default function FlightTable({
           {!loading && !hasData && (
             <tr>
               <td
-                colSpan="8"
+                colSpan="9"
                 className="px-4 py-8 text-center text-neutral-500"
               >
                 No flights found
@@ -71,6 +84,23 @@ export default function FlightTable({
                 key={f.flightID}
                 className="border-b border-neutral-100 hover:bg-primary-50/30 transition"
               >
+                <td className="px-4 py-2">
+                  {f.imageURL ? (
+                    <img
+                      src={toAbsoluteUrl(f.imageURL)}
+                      alt={f.flightCode}
+                      className="w-16 h-16 object-cover rounded-lg border border-neutral-200"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        const placeholder = e.target.nextElementSibling;
+                        if (placeholder) placeholder.classList.remove('hidden');
+                      }}
+                    />
+                  ) : null}
+                  <div className={`w-16 h-16 bg-neutral-100 rounded-lg border border-neutral-200 flex items-center justify-center ${f.imageURL ? 'hidden' : ''}`}>
+                    <span className="text-neutral-400 text-xs">No Image</span>
+                  </div>
+                </td>
                 <td className="px-4 py-2 font-medium">{f.flightCode}</td>
                 <td className="px-4 py-2">{f.airline}</td>
                 <td className="px-4 py-2">

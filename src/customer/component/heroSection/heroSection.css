@@ -1,50 +1,22 @@
-/* Make background darker for readability */
-.category-item {
-    position: relative;
-}
-
-.category-overlay {
-    position: absolute;
-    inset: 0;
-    background: rgba(255, 255, 255, 0.2);
-    transition: 0.3s ease;
-}
-
-.category-item:hover .category-overlay {
-    background: rgba(255, 255, 255, 0.4);
-}
-
-/* Left big item custom spacing */
-.category-left-text h1 {
-    font-weight: bold;
-}
-
-/* Add smooth hover zoom effect */
-.category-item {
-    overflow: hidden;
-}
-
-.category-item:hover {
-    transform: scale(1.02);
-    transition: 0.3s ease;
-}
-
-/* Entire section padding fix */
-.category-section {
-    margin-top: 60px;
-}
-
-/* Large item styling */
-.category-left {
-    transition: 0.35s;
-}
-
-.category-left:hover {
-    transform: scale(1.01);
-}
+/* Hero Section Styles */
 .category-card {
   position: relative;
   overflow: hidden;
+}
+
+.category-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.category-card:hover::before {
+  opacity: 1;
 }
 
 .category-card img {
@@ -52,6 +24,36 @@
   right: 0;
   bottom: 0;
   height: 100%;
-  object-fit: contain;
+  width: auto;
+  object-fit: cover;
+  object-position: right center;
   pointer-events: none;
+  transition: transform 0.5s ease;
+}
+
+.category-card:hover img {
+  transform: scale(1.05);
+}
+
+/* Smooth hover effects */
+.category-card {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.category-card:hover {
+  transform: translateY(-4px);
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .category-card {
+    height: auto;
+    min-height: 200px;
+  }
+}
+
+@media (max-width: 640px) {
+  .category-card {
+    min-height: 180px;
+  }
 }
