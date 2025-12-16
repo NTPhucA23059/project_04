@@ -1,17 +1,42 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { StarIcon, ArrowLeftIcon } from "@heroicons/react/20/solid";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import TourScheduleAccordion from "./TourScheduleAccordion";
 import ReviewModal from "./ReviewModal";
 import TourImportantNotes from "./TourImportantNotes";
+import { isAuthenticated } from "../../../services/common/authService";
 
-export default function TourDetail({ tour, details, images, category, season, reviews }) {
+export default function TourDetail({ tour, details, allDetails = [], images, category, season, reviews }) {
     const tourCities = tour?.TourCities || [];
 
     const navigate = useNavigate();
     const [showModal, setShowModal] = useState(false);
+    
+    // State để quản lý detail được chọn
+    const [selectedDetailId, setSelectedDetailId] = useState(details?.TourDetailID || null);
+    
+    // Sync selectedDetailId khi details thay đổi
+    useEffect(() => {
+        if (details?.TourDetailID && details.TourDetailID !== selectedDetailId) {
+            setSelectedDetailId(details.TourDetailID);
+        }
+    }, [details?.TourDetailID]);
+    
+    // Tìm detail được chọn từ allDetails, fallback về details nếu không tìm thấy
+    const selectedDetail = allDetails.length > 0 
+        ? (allDetails.find(d => d.TourDetailID === selectedDetailId) || allDetails[0] || details)
+        : details;
+    
+    // Cập nhật season từ selectedDetail
+    const currentSeason = selectedDetail?.SeasonID
+        ? {
+            SeasonID: selectedDetail.SeasonID,
+            SeasonName: selectedDetail.SeasonName || null,
+            Description: selectedDetail.SeasonDescription || null
+        }
+        : season;
 
-    const schedules = details?.Schedules || [];
+    const schedules = selectedDetail?.Schedules || [];
     const safeImages = images || [];
     const safeReviews = reviews || [];
 
@@ -25,7 +50,7 @@ export default function TourDetail({ tour, details, images, category, season, re
         ).toFixed(1)
         : "0.0";
 
-    const unitPrice = details?.UnitPrice ?? 0;
+    const unitPrice = selectedDetail?.UnitPrice ?? 0;
 
     // Format price to USD
     const formatUSD = (value) =>
@@ -36,16 +61,21 @@ export default function TourDetail({ tour, details, images, category, season, re
         }) || "$0";
     // ===== BOOKING RULE: must book 24h before departure =====
     const canBook = (() => {
-        if (!details?.DepartureDate) return false;
+        if (!selectedDetail?.DepartureDate) return false;
 
         const now = new Date();
-        const departure = new Date(details.DepartureDate);
+        const departure = new Date(selectedDetail.DepartureDate);
 
         const diffMs = departure.getTime() - now.getTime();
         const diffHours = diffMs / (1000 * 60 * 60);
 
         return diffHours >= 24;
     })();
+
+    // Handler khi chọn detail khác
+    const handleDetailChange = (detailId) => {
+        setSelectedDetailId(Number(detailId));
+    };
 
 
     const formatDateTimeEN = (date) => {
@@ -83,15 +113,31 @@ export default function TourDetail({ tour, details, images, category, season, re
 
 
     function handleBooking() {
-        if (!details?.TourDetailID) return;
-        navigate(`/checkout/${details.TourDetailID}`, {
-            state: {
-                tour,
-                details,
-                images,
-                category,
-                season
-            }
+        if (!selectedDetail?.TourDetailID) return;
+        
+        // Prepare state data for checkout
+        const checkoutState = {
+            tour,
+            details: selectedDetail,
+            images,
+            category,
+            season: currentSeason
+        };
+        
+        // Check if user is authenticated
+        if (!isAuthenticated()) {
+            // Save state to sessionStorage for later use
+            sessionStorage.setItem('checkoutState', JSON.stringify(checkoutState));
+            
+            // Redirect to login with returnUrl
+            const returnUrl = `/checkout/${selectedDetail.TourDetailID}`;
+            navigate(`/login?returnUrl=${encodeURIComponent(returnUrl)}`);
+            return;
+        }
+        
+        // User is authenticated, proceed to checkout
+        navigate(`/checkout/${selectedDetail.TourDetailID}`, {
+            state: checkoutState
         });
     }
 
@@ -241,13 +287,13 @@ export default function TourDetail({ tour, details, images, category, season, re
                         )}
 
                         {/* Season */}
-                        {season && (
+                        {currentSeason && (
                             <div className="bg-gray-50 rounded-lg p-4 border-l-4 border-gray-400">
                                 <h3 className="text-base font-semibold text-gray-900 mb-2">
-                                    Season: {season.SeasonName}
+                                    Season: {currentSeason.SeasonName}
                                 </h3>
-                                {season.Description && (
-                                    <p className="text-sm text-gray-700">{season.Description}</p>
+                                {currentSeason.Description && (
+                                    <p className="text-sm text-gray-700">{currentSeason.Description}</p>
                                 )}
                             </div>
                         )}
@@ -272,7 +318,7 @@ export default function TourDetail({ tour, details, images, category, season, re
                     </div>
 
                     {/* RIGHT BOOKING BOX */}
-                    {details && (
+                    {selectedDetail && (
                         <div className="lg:sticky lg:top-6 h-fit mt-6 lg:mt-0">
                             <div className="bg-primary-100 rounded-lg p-5 border border-gray-300 shadow-md">
                                 <div className="text-center mb-4">
@@ -283,30 +329,52 @@ export default function TourDetail({ tour, details, images, category, season, re
                                     <p className="text-xs text-gray-500 mt-1">per person</p>
                                 </div>
 
+                                {/* Select Departure Date - chỉ hiển thị nếu có nhiều hơn 1 detail */}
+                                {allDetails.length > 1 && (
+                                    <div className="mb-4">
+                                        <label className="block text-xs font-medium text-gray-700 mb-2">
+                                            Select Departure Date
+                                        </label>
+                                        <select
+                                            value={selectedDetailId || ""}
+                                            onChange={(e) => handleDetailChange(e.target.value)}
+                                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+                                        >
+                                            {allDetails
+                                                .filter(d => d.Status === 1) // Chỉ hiển thị các tour đang active
+                                                .map((d) => (
+                                                    <option key={d.TourDetailID} value={d.TourDetailID}>
+                                                        {formatDateTimeEN(d.DepartureDate)} - {formatUSD(d.UnitPrice)}
+                                                    </option>
+                                                ))}
+                                        </select>
+                                    </div>
+                                )}
+
                                 <div className="bg-primary-50 rounded-lg p-3 space-y-3 mb-4">
                                     <div>
                                         <p className="text-xs text-gray-600 mb-1">Departure Date</p>
-                                        <p className="font-medium text-gray-900">{formatDateTimeEN(details.DepartureDate)}</p>
-                                        <p className="text-xs text-gray-500 mt-1">{formatDateTimeVN(details.DepartureDate)}</p>
+                                        <p className="font-medium text-gray-900">{formatDateTimeEN(selectedDetail.DepartureDate)}</p>
+                                        <p className="text-xs text-gray-500 mt-1">{formatDateTimeVN(selectedDetail.DepartureDate)}</p>
                                     </div>
                                     <div>
                                         <p className="text-xs text-gray-600 mb-1">Arrival Date</p>
-                                        <p className="font-medium text-gray-900">{formatDateTimeEN(details.ArrivalDate)}</p>
-                                        <p className="text-xs text-gray-500 mt-1">{formatDateTimeVN(details.ArrivalDate)}</p>
+                                        <p className="font-medium text-gray-900">{formatDateTimeEN(selectedDetail.ArrivalDate)}</p>
+                                        <p className="text-xs text-gray-500 mt-1">{formatDateTimeVN(selectedDetail.ArrivalDate)}</p>
                                     </div>
                                     <div className="pt-3 border-t border-gray-200">
                                         <div className="flex justify-between items-center mb-2">
                                             <span className="text-sm text-gray-600">Total Seats</span>
-                                            <span className="font-medium text-gray-900">{details.NumberOfGuests}</span>
+                                            <span className="font-medium text-gray-900">{selectedDetail.NumberOfGuests}</span>
                                         </div>
                                         <div className="flex justify-between items-center mb-2">
                                             <span className="text-sm text-gray-600">Booked</span>
-                                            <span className="font-medium text-gray-900">{details.BookedSeat || 0}</span>
+                                            <span className="font-medium text-gray-900">{selectedDetail.BookedSeat || 0}</span>
                                         </div>
                                         <div className="flex justify-between items-center">
                                             <span className="text-sm text-gray-600">Available</span>
                                             <span className="font-medium text-green-600">
-                                                {details.NumberOfGuests - (details.BookedSeat || 0)}
+                                                {selectedDetail.NumberOfGuests - (selectedDetail.BookedSeat || 0)}
                                             </span>
                                         </div>
                                     </div>

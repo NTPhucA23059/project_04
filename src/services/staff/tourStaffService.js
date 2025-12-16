@@ -124,3 +124,4 @@ export const uploadTourImages = async (tourDetailID, files) => {
 
 
 
+

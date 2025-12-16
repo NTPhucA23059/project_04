@@ -13,3 +13,4 @@ export const fetchSeasons = async () => {
   }
 };
 
+

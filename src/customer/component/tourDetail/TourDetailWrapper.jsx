@@ -11,7 +11,8 @@ export default function TourDetailWrapper() {
     const [error, setError] = useState(null);
     const [data, setData] = useState({
         tour: null,
-        details: null,
+        details: null, // Selected detail (for backward compatibility)
+        allDetails: [], // All available departure dates
         images: [],
         category: null,
         season: null,
@@ -78,8 +79,24 @@ export default function TourDetailWrapper() {
                       }
                     : null;
 
-                // Lấy detail đầu tiên từ danh sách details (hoặc dùng getDetail() nếu có)
-                const detailData = payload?.detail || (payload?.details && payload.details.length > 0 ? payload.details[0] : null);
+                // Map tất cả details (các ngày khởi hành)
+                const allDetailsList = (payload?.details || []).map(detailData => ({
+                    TourDetailID: detailData.tourDetailID,
+                    DepartureDate: detailData.departureDate,
+                    ArrivalDate: detailData.arrivalDate,
+                    NumberOfGuests: detailData.numberOfGuests,
+                    MinimumNumberOfGuests: detailData.minimumNumberOfGuests,
+                    BookedSeat: detailData.bookedSeat || 0,
+                    UnitPrice: Number(detailData.unitPrice),
+                    SeasonID: detailData.seasonID,
+                    SeasonName: detailData.seasonName || null,
+                    SeasonDescription: detailData.seasonDescription || null,
+                    Status: detailData.status,
+                    Schedules: mapSchedules(detailData.schedules || [])
+                }));
+
+                // Lấy detail đầu tiên làm mặc định (hoặc dùng getDetail() nếu có)
+                const detailData = payload?.detail || (allDetailsList.length > 0 ? allDetailsList[0] : null);
                 
                 let detail = detailData
                     ? {
@@ -96,6 +113,7 @@ export default function TourDetailWrapper() {
                       }
                     : null;
 
+                // Load schedules nếu chưa có
                 if (detail?.TourDetailID && (!detail.Schedules || detail.Schedules.length === 0)) {
                     try {
                         const scRes = await api.get(
@@ -109,6 +127,27 @@ export default function TourDetailWrapper() {
                         console.warn("Không tải được lịch trình riêng", e);
                     }
                 }
+
+                // Load schedules cho tất cả details nếu chưa có
+                const allDetailsWithSchedules = await Promise.all(
+                    allDetailsList.map(async (d) => {
+                        if (d.Schedules && d.Schedules.length > 0) {
+                            return d;
+                        }
+                        try {
+                            const scRes = await api.get(
+                                `/customer/tour-schedules/tour-detail/${d.TourDetailID}`
+                            );
+                            return {
+                                ...d,
+                                Schedules: mapSchedules(scRes.data || [])
+                            };
+                        } catch (e) {
+                            console.warn(`Không tải được lịch trình cho detail ${d.TourDetailID}`, e);
+                            return d;
+                        }
+                    })
+                );
 
                 // Map images từ tour.images (ảnh gallery của tour, không phải của tourDetail)
                 const images =
@@ -127,7 +166,7 @@ export default function TourDetailWrapper() {
                     }
                     : null;
                 
-                // Map season from detailData
+                // Map season from detailData (của detail được chọn)
                 const season = detailData?.seasonID
                     ? {
                         SeasonID: detailData.seasonID,
@@ -140,6 +179,7 @@ export default function TourDetailWrapper() {
                     setData({
                         tour,
                         details: detail,
+                        allDetails: allDetailsWithSchedules, // Tất cả các ngày khởi hành
                         images,
                         category,
                         season,
@@ -172,6 +212,7 @@ export default function TourDetailWrapper() {
         <TourDetail
             tour={data.tour}
             details={data.details}
+            allDetails={data.allDetails}
             images={data.images}
             category={data.category}
             season={data.season}

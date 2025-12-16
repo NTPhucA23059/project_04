@@ -2,7 +2,7 @@ import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as Yup from "yup";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import "./toast.css";
 import logo from "../../../assets/img/logo.png";
 import { login } from "../../../services/common/authService";
@@ -11,6 +11,8 @@ import { FaUser, FaLock } from "react-icons/fa";
 
 export default function Login() {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const returnUrl = searchParams.get("returnUrl");
     const [toast, setToast] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
@@ -40,8 +42,14 @@ export default function Login() {
                 console.log("Redirecting to /staff");
                 window.location.href = "/staff";
             } else {
-                console.log("Redirecting to / (customer)");
-                navigate("/", { replace: true });
+                // Customer: redirect to returnUrl if exists, otherwise go to home
+                if (returnUrl) {
+                    console.log("Redirecting to returnUrl:", returnUrl);
+                    navigate(returnUrl, { replace: true });
+                } else {
+                    console.log("Redirecting to / (customer)");
+                    navigate("/", { replace: true });
+                }
             }
         }, 1500); 
     };

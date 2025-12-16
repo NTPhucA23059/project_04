@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import StatusBadge from "../../component/tour/StatusBadge";
+import StatusBadge from "../bookings/StatusBadge";
 import { getCurrentUser } from "../../../services/common/authService";
 import { fetchCarBookingsByAccount, fetchCarBookingFull } from "../../../services/customer/carBookingService";
 

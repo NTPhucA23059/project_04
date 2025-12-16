@@ -14,10 +14,11 @@ import CarDetailWrapper from './component/carDetail/CarDetailWrapper'
 
 import Tours from './component/tour/Tours'
 import CarList from './component/car/CarList'
-import CheckoutPage from './component/tour/CheckoutPage'
-import BookingSuccessPage from './component/tour/BookingSuccessPage'
-import MyBookingsPage from './component/tour/MyBookingsPage'
-import BookingDetailPage from './component/tour/BookingDetailPage'
+import CheckoutPage from './component/checkout/CheckoutPage'
+import BookingSuccessPage from './component/checkout/BookingSuccessPage'
+import MyBookingsPage from './component/bookings/MyBookingsPage'
+import BookingDetailPage from './component/bookings/BookingDetailPage'
+import RefundSuccessPage from './component/bookings/RefundSuccessPage'
 import PayNowPage from './component/tour/PayNowPage'
 import CheckoutCar from './component/car/CheckoutCar'
 import CarBookingSuccess from './component/car/CarBookingSuccess'
@@ -179,6 +180,16 @@ export default function CustomerApp() {
             <div className="flex flex-col min-h-screen">
               <Navigation />
               <BookingDetailPage />
+              <Footer />
+            </div>
+          }
+        />
+        <Route
+          path="/refund-success"
+          element={
+            <div className="flex flex-col min-h-screen">
+              <Navigation />
+              <RefundSuccessPage />
               <Footer />
             </div>
           }

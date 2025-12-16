@@ -1,6 +1,6 @@
 import { useLocation, Link } from "react-router-dom";
 import { useEffect, useState } from "react";
-import StatusBadge from "../../component/tour/StatusBadge";
+import StatusBadge from "../bookings/StatusBadge";
 import { refundRules } from "../../component/data/mockData";
 import { fetchCarBookingFull, createReview } from "../../../services/customer/carBookingService";
 
