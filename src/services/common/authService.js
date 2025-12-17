@@ -39,13 +39,31 @@ export const register = async (registerData) => {
     const { token, user } = response.data;
 
     // Lưu token và user vào localStorage
-    localStorage.setItem("token", token);
-    localStorage.setItem("user", JSON.stringify(user));
+    if (token) {
+      localStorage.setItem("token", token);
+    }
+    if (user) {
+      localStorage.setItem("user", JSON.stringify(user));
+      // Dispatch custom event để Navigation component cập nhật
+      window.dispatchEvent(new Event('userLogin'));
+    }
 
     return response.data;
   } catch (error) {
     // Xử lý lỗi và throw để component có thể bắt
-    const errorMessage = error.response?.data?.message || "Đăng ký thất bại. Vui lòng thử lại!";
+    // Ưu tiên lấy message từ response, nếu không có thì lấy error, cuối cùng là message mặc định
+    let errorMessage = error.response?.data?.message || 
+                       error.response?.data?.error || 
+                       "Đăng ký thất bại. Vui lòng thử lại!";
+    
+    // Kiểm tra nếu là lỗi email trùng
+    if (errorMessage.toLowerCase().includes("email") && 
+        (errorMessage.toLowerCase().includes("tồn tại") || 
+         errorMessage.toLowerCase().includes("already exists") ||
+         errorMessage.toLowerCase().includes("duplicate"))) {
+      errorMessage = "Email đã tồn tại. Vui lòng sử dụng email khác!";
+    }
+    
     throw new Error(errorMessage);
   }
 };

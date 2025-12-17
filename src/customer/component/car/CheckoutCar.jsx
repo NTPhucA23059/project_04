@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { FaMapMarkerAlt, FaUser, FaPhone, FaEnvelope } from "react-icons/fa";
 import { refundRules } from "../../component/data/mockData";
-import { getCurrentUser } from "../../../services/common/authService";
+import { getCurrentUser, isAuthenticated } from "../../../services/common/authService";
 import { createCustomerInfo } from "../../../services/customer/bookingService";
 import { createCarBooking } from "../../../services/customer/carBookingService";
 import { formatUSD } from "../../../utils/currency";
@@ -12,6 +12,18 @@ export default function CheckoutCar() {
     const { state } = useLocation();
     const navigate = useNavigate();
     const car = state?.car;
+
+    // Check authentication - redirect to login if not authenticated
+    useEffect(() => {
+        if (!isAuthenticated()) {
+            navigate("/login", { 
+                state: { 
+                    from: "/checkout-car",
+                    message: "Please login to book a car"
+                } 
+            });
+        }
+    }, [navigate]);
 
     const [errors, setErrors] = useState({});
     const [agree, setAgree] = useState(false);
@@ -83,24 +95,24 @@ export default function CheckoutCar() {
     // =====================
     const validators = {
         fullName: (v) =>
-            !v ? "Vui lòng nhập họ tên"
+            !v ? "Please enter your full name"
                 : v.trim().split(" ").length < 2
-                    ? "Họ tên phải có ít nhất 2 từ"
+                    ? "Full name must have at least 2 words"
                     : "",
         phone: (v) =>
-            !v ? "Vui lòng nhập số điện thoại"
+            !v ? "Please enter your phone number"
                 : !/^[0-9]{8,15}$/.test(v)
-                    ? "Số điện thoại không hợp lệ (8-15 số)"
+                    ? "Invalid phone number (8-15 digits)"
                     : "",
         email: (v) =>
-            !v ? "Vui lòng nhập email"
+            !v ? "Please enter your email"
                 : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
-                    ? "Email không đúng định dạng"
+                    ? "Invalid email format"
                     : "",
-        pickupDate: (v) => (!v ? "Vui lòng chọn ngày nhận xe" : ""),
-        dropoffDate: (v) => (!v ? "Vui lòng chọn ngày trả xe" : ""),
-        pickupLocation: (v) => (!v ? "Vui lòng nhập địa điểm nhận xe" : ""),
-        dropoffLocation: (v) => (!v ? "Vui lòng nhập địa điểm trả xe" : ""),
+        pickupDate: (v) => (!v ? "Please select pickup date" : ""),
+        dropoffDate: (v) => (!v ? "Please select dropoff date" : ""),
+        pickupLocation: (v) => (!v ? "Please enter pickup location" : ""),
+        dropoffLocation: (v) => (!v ? "Please enter dropoff location" : ""),
     };
 
     const validateForm = () => {
@@ -156,7 +168,7 @@ export default function CheckoutCar() {
         }
 
         if (!form.paymentMethod) {
-            newErrors.paymentMethod = "Vui lòng chọn phương thức thanh toán";
+            newErrors.paymentMethod = "Please select a payment method";
         }
 
         if (!agree) {
@@ -206,11 +218,17 @@ export default function CheckoutCar() {
 
         try {
             if (!dailyRate || Number.isNaN(dailyRate)) {
-                throw new Error("Giá thuê xe không hợp lệ. Vui lòng chọn xe khác.");
+                throw new Error("Invalid car rental rate. Please select another car.");
             }
 
             const currentUser = getCurrentUser();
-            const accountID = currentUser?.accountID || currentUser?.AccountID || 1;
+            if (!currentUser) {
+                throw new Error("You must be logged in to book a car. Please login first.");
+            }
+            const accountID = currentUser?.accountID || currentUser?.AccountID;
+            if (!accountID) {
+                throw new Error("Invalid user account. Please login again.");
+            }
 
             // 1) Tạo CustomerInfo (public endpoint)
             const customerInfo = await createCustomerInfo({
@@ -224,7 +242,7 @@ export default function CheckoutCar() {
             // 2) Tạo CarBooking
             const carID = car.CarID ?? car.carID ?? car.id;
             if (!carID) {
-                throw new Error("Không xác định được CarID. Vui lòng chọn lại xe từ danh sách.");
+                throw new Error("Car ID not found. Please select a car from the list.");
             }
 
             const bookingCode = "CR" + Date.now();
@@ -272,7 +290,7 @@ export default function CheckoutCar() {
             navigate("/car-booking-success", { state: { payload, car } });
         } catch (error) {
             console.error("Car booking error:", error);
-            setSubmitError(error.message || "Không thể tạo đơn đặt xe, vui lòng thử lại.");
+            setSubmitError(error.message || "Failed to create car booking. Please try again.");
             setIsSubmitting(false);
         }
     };
@@ -290,7 +308,7 @@ export default function CheckoutCar() {
 
                 {/* CONTACT */}
                 <div>
-                    <h2 className="text-xl font-bold mb-2">Thông Tin Liên Hệ</h2>
+                    <h2 className="text-xl font-bold mb-2">Contact Information</h2>
                     <div className="relative">
                         <FaEnvelope className="absolute left-3 top-3 text-neutral-400" />
                         <input
@@ -305,14 +323,14 @@ export default function CheckoutCar() {
 
                 {/* CUSTOMER */}
                 <div>
-                    <h2 className="text-xl font-bold mb-2">Thông Tin Khách Hàng</h2>
+                    <h2 className="text-xl font-bold mb-2">Customer Information</h2>
 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="relative">
                             <FaUser className="absolute left-3 top-3 text-neutral-400" />
                             <input
                                 className={`${inputStyle} pl-10 ${errors.fullName ? "border-red-500" : ""}`}
-                                placeholder="Họ và tên"
+                                placeholder="Full Name"
                                 value={form.fullName}
                                 onChange={(e) => update("fullName", e.target.value)}
                             />
@@ -320,7 +338,7 @@ export default function CheckoutCar() {
 
                         <input
                             className={inputStyle}
-                            placeholder="CMND / CCCD / Passport"
+                            placeholder="ID Card / Passport (Optional)"
                             value={form.citizenId}
                             onChange={(e) => update("citizenId", e.target.value)}
                         />
@@ -333,7 +351,7 @@ export default function CheckoutCar() {
                             <FaPhone className="absolute left-3 top-3 text-neutral-400" />
                             <input
                                 className={`${inputStyle} pl-10 ${errors.phone ? "border-red-500" : ""}`}
-                                placeholder="Số điện thoại"
+                                placeholder="Phone Number"
                                 value={form.phone}
                                 onChange={(e) => update("phone", e.target.value)}
                             />
@@ -341,7 +359,7 @@ export default function CheckoutCar() {
 
                         <input
                             className={inputStyle}
-                            placeholder="Ghi chú (không bắt buộc)"
+                            placeholder="Notes (Optional)"
                             value={form.notes}
                             onChange={(e) => update("notes", e.target.value)}
                         />
@@ -351,7 +369,7 @@ export default function CheckoutCar() {
 
                 {/* PICKUP */}
                 <div>
-                    <h2 className="text-xl font-bold mb-2">Thông Tin Nhận Xe</h2>
+                    <h2 className="text-xl font-bold mb-2">Pickup Information</h2>
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
@@ -388,7 +406,7 @@ export default function CheckoutCar() {
                         <FaMapMarkerAlt className="absolute left-3 top-3 text-neutral-400" />
                         <input
                             className={`${inputStyle} pl-10 ${errors.pickupLocation ? "border-red-500" : ""}`}
-                            placeholder="Địa điểm nhận xe"
+                            placeholder="Pickup Location"
                             value={form.pickupLocation}
                             onChange={(e) => update("pickupLocation", e.target.value)}
                         />
@@ -400,7 +418,7 @@ export default function CheckoutCar() {
 
                 {/* DROPOFF */}
                 <div>
-                    <h2 className="text-xl font-bold mb-2">Thông Tin Trả Xe</h2>
+                    <h2 className="text-xl font-bold mb-2">Dropoff Information</h2>
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
@@ -432,7 +450,7 @@ export default function CheckoutCar() {
                         <FaMapMarkerAlt className="absolute left-3 top-3 text-neutral-400" />
                         <input
                             className={`${inputStyle} pl-10 ${errors.dropoffLocation ? "border-red-500" : ""}`}
-                            placeholder="Địa điểm trả xe"
+                            placeholder="Dropoff Location"
                             value={form.dropoffLocation}
                             onChange={(e) => update("dropoffLocation", e.target.value)}
                         />
@@ -494,7 +512,7 @@ export default function CheckoutCar() {
                                 checked={form.paymentMethod === "OFFICE"}
                                 onChange={(e) => update("paymentMethod", e.target.value)}
                             />
-                            Thanh toán tại quầy
+                            Pay at Office
                         </label>
 
                         {form.paymentMethod === "OFFICE" && (
@@ -511,7 +529,7 @@ export default function CheckoutCar() {
                                 checked={form.paymentMethod === "MOMO"}
                                 onChange={(e) => update("paymentMethod", e.target.value)}
                             />
-                            Ví MoMo
+                            MoMo Wallet
                         </label>
 
                         <label className="flex items-center gap-2">
@@ -560,7 +578,7 @@ export default function CheckoutCar() {
             {/* RIGHT SUMMARY */}
             {/* ========================= */}
             <div className="border rounded-xl p-6 shadow-md h-fit bg-accent-50">
-                <h2 className="text-lg font-bold mb-4">Tổng Quan Chi Phí</h2>
+                <h2 className="text-lg font-bold mb-4">Cost Summary</h2>
 
                 <div className="flex gap-4 mb-4">
                     <img 
@@ -633,7 +651,7 @@ export default function CheckoutCar() {
                             : "bg-primary-600 hover:bg-primary-700"
                     }`}
                 >
-                    {isSubmitting ? "Đang xử lý..." : "Xác Nhận Đặt Xe"}
+                    {isSubmitting ? "Processing..." : "Confirm Booking"}
                 </button>
             </div>
         </div>

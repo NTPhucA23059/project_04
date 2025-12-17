@@ -23,3 +23,24 @@ export const analyzePackageSales = async ({
   const res = await api.get(`${BASE}/package-sales`, { params });
   return res.data;
 };
+
+/**
+ * Analyze car rental sales
+ * @param {Object} params - Analysis parameters
+ * @param {string} params.startDate - Start date (YYYY-MM-DD)
+ * @param {string} params.endDate - End date (YYYY-MM-DD)
+ * @param {number} params.carID - Optional car ID filter
+ */
+export const analyzeCarRentalSales = async ({
+  startDate,
+  endDate,
+  carID,
+} = {}) => {
+  const params = {};
+  if (startDate) params.startDate = startDate;
+  if (endDate) params.endDate = endDate;
+  if (carID) params.carID = carID;
+
+  const res = await api.get(`${BASE}/car-rental-sales`, { params });
+  return res.data;
+};

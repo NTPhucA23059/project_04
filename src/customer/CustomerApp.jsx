@@ -24,6 +24,7 @@ import CheckoutCar from './component/car/CheckoutCar'
 import CarBookingSuccess from './component/car/CarBookingSuccess'
 import MyCarBookingsPage from './component/car/MyCarBookingsPage'
 import CarBookingDetailPage from './component/car/CarBookingDetailPage'
+import CarPaymentPage from './component/car/CarPaymentPage'
 import HotelsListPage from './component/hotels/HotelsListPage'
 import HotelDetailPage from './component/hotels/HotelDetailPage'
 import FlightsPage from './component/flight/FlightPage'
@@ -238,6 +239,16 @@ export default function CustomerApp() {
             <div className="flex flex-col min-h-screen">
               <Navigation />
               <CarBookingDetailPage />
+              <Footer />
+            </div>
+          }
+        />
+        <Route
+          path="/car-payment"
+          element={
+            <div className="flex flex-col min-h-screen">
+              <Navigation />
+              <CarPaymentPage />
               <Footer />
             </div>
           }

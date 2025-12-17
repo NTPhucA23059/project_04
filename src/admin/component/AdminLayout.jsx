@@ -20,7 +20,7 @@ export default function AdminLayout({ children, activeTab, setActiveTab }) {
 
                 {/* Nội dung chính */}
                 <div className={`flex-1 flex flex-col transition-all duration-300 ${isSidebarOpen ? 'lg:ml-64' : 'lg:ml-0'}`}>
-                    <AdminHeader setIsSidebarOpen={setIsSidebarOpen} isSidebarOpen={isSidebarOpen} />
+                    <AdminHeader setIsSidebarOpen={setIsSidebarOpen} isSidebarOpen={isSidebarOpen} setActiveTab={setActiveTab} />
                     <main className="pt-20 px-6 flex-1 pb-20 min-h-screen">{children}</main>
                     <GlobalToast />
                 </div>

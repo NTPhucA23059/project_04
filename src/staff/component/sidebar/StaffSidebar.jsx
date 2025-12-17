@@ -1,7 +1,9 @@
 import { useState } from "react";
 import {
-  HomeIcon,
-  FolderIcon,
+  PresentationChartLineIcon,
+  PresentationChartBarIcon,
+  ChartPieIcon,
+  TagIcon,
   TruckIcon,
   ClipboardDocumentCheckIcon,
   CalendarDaysIcon,
@@ -16,17 +18,18 @@ import {
   CalendarIcon,
   StarIcon,
   PaperAirplaneIcon,
+  RectangleStackIcon,
 } from "@heroicons/react/24/outline";
-import { ChartBar, ChartBarIcon, TypeIcon } from "lucide-react";
 
 export default function StaffSidebar({ isOpen, activeTab, setActiveTab }) {
   // State để quản lý các nhóm mở/đóng
   const [openGroups, setOpenGroups] = useState({
-    tour: true,
-    vehicle: true,
-    hotel: true,
-    operations: true,
-    schedule: true,
+    overview: false,
+    tour: false,
+    vehicle: false,
+    hotel: false,
+    operations: false,
+    schedule: false,
   });
 
   const toggleGroup = (groupKey) => {
@@ -39,12 +42,12 @@ export default function StaffSidebar({ isOpen, activeTab, setActiveTab }) {
   const navGroups = [
     {
       key: "overview",
-      title: "Overview",
-      collapsible: false,
+      title: "Dashboard",
+      collapsible: true,
       items: [
-        { id: "dashboard", name: "Dashboard", icon: HomeIcon },
-        { id: "salesTours", name: "Sales Analysis", icon: ChartBarIcon }
-
+        { id: "dashboard", name: "Overview", icon: PresentationChartLineIcon },
+        { id: "salesTours", name: "Tour Sales Analysis", icon: PresentationChartBarIcon },
+        { id: "salesCars", name: "Car Rental Sales Analysis", icon: ChartPieIcon }
       ],
     },
     {
@@ -52,7 +55,7 @@ export default function StaffSidebar({ isOpen, activeTab, setActiveTab }) {
       title: "Tour Management",
       collapsible: true,
       items: [
-        { id: "categoriesTour", name: "Categories", icon: FolderIcon },
+        { id: "categoriesTour", name: "Categories", icon: TagIcon },
         { id: "seasons", name: "Seasons", icon: CalendarDaysIcon },
         { id: "cities", name: "Cities", icon: BuildingOfficeIcon },
         { id: "attractions", name: "Attractions", icon: MapPinIcon },
@@ -67,7 +70,7 @@ export default function StaffSidebar({ isOpen, activeTab, setActiveTab }) {
       title: "Vehicle Management",
       collapsible: true,
       items: [
-        { id: "carTypes", name: "Car Types", icon: TypeIcon },
+        { id: "carTypes", name: "Car Types", icon: RectangleStackIcon },
         { id: "cars", name: "Cars", icon: TruckIcon },
         { id: "carBookings", name: "Car Bookings", icon: ClipboardDocumentCheckIcon },
 

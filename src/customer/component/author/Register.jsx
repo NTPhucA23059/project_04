@@ -68,7 +68,18 @@ export default function Register() {
             await registerAPI(registerData);
             showSuccess();
         } catch (err) {
-            showError(err.message || "Registration failed. Please try again!");
+            // Hiển thị thông báo lỗi từ backend
+            let errorMessage = err.message || "Registration failed. Please try again!";
+            
+            // Kiểm tra và hiển thị thông báo rõ ràng cho email trùng
+            if (errorMessage.toLowerCase().includes("email") && 
+                (errorMessage.toLowerCase().includes("tồn tại") || 
+                 errorMessage.toLowerCase().includes("already exists") ||
+                 errorMessage.toLowerCase().includes("duplicate"))) {
+                errorMessage = "Email đã tồn tại. Vui lòng sử dụng email khác!";
+            }
+            
+            showError(errorMessage);
         } finally {
             setLoading(false);
         }

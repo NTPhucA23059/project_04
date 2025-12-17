@@ -5,6 +5,7 @@ import {
   deleteInvoice,
   exportInvoicePdf,
 } from "../../../services/staff/invoiceStaffService";
+import { searchRefunds } from "../../../services/staff/refundStaffService";
 
 // Payment status mapping: 0=Pending, 1=Paid, 2=Failed, 3=Refunded
 const paymentStatusMap = {
@@ -104,7 +105,26 @@ export default function InvoiceManagement() {
   const handleView = async (invoice) => {
     try {
       const fullInvoice = await getInvoiceById(invoice.invoiceID);
-      setSelected(fullInvoice);
+      
+      // Fetch refund info if booking exists
+      let refundInfo = null;
+      if (fullInvoice.tourBookingID) {
+        try {
+          const refundResponse = await searchRefunds({
+            page: 0,
+            size: 1,
+            bookingID: fullInvoice.tourBookingID,
+          });
+          if (refundResponse.items && refundResponse.items.length > 0) {
+            refundInfo = refundResponse.items[0];
+          }
+        } catch (refundErr) {
+          // No refund found or error - ignore
+          console.log("No refund found for booking:", refundErr);
+        }
+      }
+      
+      setSelected({ ...fullInvoice, refundInfo });
     } catch (err) {
       setToast({
         message: err?.response?.data?.error || "Failed to load invoice details",
@@ -597,6 +617,112 @@ function InvoiceDrawer({ invoice, onClose, paymentStatusMap, onPrint }) {
               </div>
             )}
           </section>
+
+          {/* Refund Information */}
+          {invoice.refundInfo && (
+            <section className="bg-yellow-50 border border-yellow-300 rounded-xl p-4 text-sm">
+              <h4 className="font-semibold text-sm mb-3 text-yellow-900">Refund Information</h4>
+              {invoice.refundInfo.refundStatus === 0 ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 mb-2">
+                    <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="font-semibold text-yellow-800">Pending Refund</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Refund Percentage:</span>
+                    <span className="font-semibold">{invoice.refundInfo.refundPercentage}%</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Expected Refund Amount:</span>
+                    <span className="font-bold text-green-700">
+                      ${(invoice.refundInfo.refundAmount || 0).toLocaleString()}
+                    </span>
+                  </div>
+                  {invoice.refundInfo.cancelDate && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Request Date:</span>
+                      <span className="font-medium">
+                        {new Date(invoice.refundInfo.cancelDate).toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              ) : invoice.refundInfo.refundStatus === 1 ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 mb-2">
+                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="font-semibold text-green-800">Refund Processed</span>
+                  </div>
+                  {invoice.refundInfo.refundReason && (
+                    <div className="bg-white rounded-lg p-3 border border-green-200 mb-2">
+                      <p className="text-xs font-medium text-gray-700 mb-1">Refund Reason:</p>
+                      <p className="text-sm text-gray-800">{invoice.refundInfo.refundReason}</p>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Refund Percentage:</span>
+                    <span className="font-semibold">{invoice.refundInfo.refundPercentage}%</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Refund Amount:</span>
+                    <span className="font-bold text-green-700 text-lg">
+                      ${(invoice.refundInfo.refundAmount || 0).toLocaleString()}
+                    </span>
+                  </div>
+                  {invoice.refundInfo.cancelDate && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Request Date:</span>
+                      <span className="font-medium">
+                        {new Date(invoice.refundInfo.cancelDate).toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </span>
+                    </div>
+                  )}
+                  {invoice.refundInfo.processedDate && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Processed Date:</span>
+                      <span className="font-medium">
+                        {new Date(invoice.refundInfo.processedDate).toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </span>
+                    </div>
+                  )}
+                  {invoice.refundInfo.staffID && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Processed By:</span>
+                      <span className="font-medium">Staff #{invoice.refundInfo.staffID}</span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="font-semibold text-red-800">Refund Rejected</span>
+                  </div>
+                  {invoice.refundInfo.refundReason && (
+                    <div className="bg-white rounded-lg p-3 border border-red-200">
+                      <p className="text-xs font-medium text-gray-700 mb-1">Reason:</p>
+                      <p className="text-sm text-gray-800">{invoice.refundInfo.refundReason}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </section>
+          )}
 
           {/* Note */}
           {invoice.note && (

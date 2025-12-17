@@ -1,10 +1,18 @@
 import { BellIcon, Bars3Icon } from "@heroicons/react/24/outline";
 import { useEffect, useRef, useState } from "react";
+import { logout } from "../../../services/common/authService";
+import { getCurrentUser } from "../../../services/common/authService";
 
-export default function AdminHeader({ setIsSidebarOpen, isSidebarOpen }) {
+export default function AdminHeader({ setIsSidebarOpen, isSidebarOpen, setActiveTab }) {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [user, setUser] = useState(null);
 
   const userMenuRef = useRef(null);
+
+  useEffect(() => {
+    const currentUser = getCurrentUser();
+    setUser(currentUser);
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -18,6 +26,19 @@ export default function AdminHeader({ setIsSidebarOpen, isSidebarOpen }) {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+
+  const handleProfileClick = () => {
+    setUserMenuOpen(false);
+    if (setActiveTab) {
+      setActiveTab("admin-profile");
+    }
+  };
+
+  const handleLogout = () => {
+    setUserMenuOpen(false);
+    logout();
+    window.location.href = "/login";
+  };
 
 
 
@@ -50,22 +71,30 @@ export default function AdminHeader({ setIsSidebarOpen, isSidebarOpen }) {
             />
 
             {userMenuOpen && (
-              <div className="absolute right-0 mt-2 w-40 bg-white text-gray-700 rounded-md shadow-lg z-50">
+              <div className="absolute right-0 mt-2 w-48 bg-white text-gray-700 rounded-md shadow-lg z-50 border border-gray-200">
+                <div className="px-4 py-2 border-b border-gray-100 bg-blue-50">
+                  <p className="text-sm font-semibold text-gray-900">
+                    {user?.fullName || user?.username || "Admin User"}
+                  </p>
+                  <p className="text-xs text-gray-600 mt-0.5">
+                    {user?.email || user?.username || "admin@example.com"}
+                  </p>
+                </div>
                 <button
-                  className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 rounded-t-md"
-                  onClick={() => setUserMenuOpen(false)}
+                  className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 rounded-t-md transition-colors"
+                  onClick={handleProfileClick}
                 >
                   Profile
                 </button>
                 <button
-                  className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                  className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors"
                   onClick={() => setUserMenuOpen(false)}
                 >
                   Settings
                 </button>
                 <button
-                  className="block w-full text-left px-4 py-2 text-sm hover:bg-red-50 text-red-600 rounded-b-md"
-
+                  className="block w-full text-left px-4 py-2 text-sm hover:bg-red-50 text-red-600 rounded-b-md transition-colors"
+                  onClick={handleLogout}
                 >
                   Logout
                 </button>

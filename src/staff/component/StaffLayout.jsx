@@ -26,6 +26,7 @@ export default function StaffLayout({ children, activeTab, setActiveTab }) {
           <StaffHeader
             setIsSidebarOpen={setIsSidebarOpen}
             isSidebarOpen={isSidebarOpen}
+            setActiveTab={setActiveTab}
           />
           <main className="pt-20 px-6 lg:px-8 xl:px-12 flex-1 pb-24 min-h-screen bg-neutral-50">
             <div className="max-w-7xl mx-auto">

@@ -98,7 +98,7 @@ export default function CarListPage() {
       const seat = c.SeatingCapacity ?? c.seatingCapacity;
       const brand = c.Brand || c.brand;
       return (!selectedSeats || seat === selectedSeats)
-          && (!selectedBrand || brand === selectedBrand);
+        && (!selectedBrand || brand === selectedBrand);
     });
   }, [cars, selectedSeats, selectedBrand]);
 
@@ -132,7 +132,7 @@ export default function CarListPage() {
       </div>
 
       {/* SEARCH BAR */}
-      <div className="max-w-7xl mx-auto px-6 mb-6">
+      <div className="px-6 mb-6">
         <div className="relative">
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-neutral-400" />
           <input
@@ -193,7 +193,7 @@ export default function CarListPage() {
           selected={selectedSeats}
           onChange={(v) => { setSelectedSeats(v === selectedSeats ? null : v); setPage(1); }}
         />
-        
+
         {/* Clear all filters button */}
         {(selectedType || selectedBrand || selectedSeats) && (
           <button
@@ -250,9 +250,8 @@ export default function CarListPage() {
           <button
             onClick={() => goToPage(page - 1)}
             disabled={page === 1}
-            className={`px-3 py-1 rounded-lg border text-sm ${
-              page === 1 ? "opacity-40 cursor-not-allowed" : "hover:bg-primary-100"
-            }`}
+            className={`px-3 py-1 rounded-lg border text-sm ${page === 1 ? "opacity-40 cursor-not-allowed" : "hover:bg-primary-100"
+              }`}
           >
             Previous
           </button>
@@ -261,9 +260,8 @@ export default function CarListPage() {
             <button
               key={num}
               onClick={() => goToPage(num)}
-              className={`px-3 py-1 rounded-lg border text-sm ${
-                page === num ? "bg-primary-600 text-white" : "hover:bg-primary-100"
-              }`}
+              className={`px-3 py-1 rounded-lg border text-sm ${page === num ? "bg-primary-600 text-white" : "hover:bg-primary-100"
+                }`}
             >
               {num}
             </button>
@@ -272,9 +270,8 @@ export default function CarListPage() {
           <button
             onClick={() => goToPage(page + 1)}
             disabled={page === totalPages}
-            className={`px-3 py-1 rounded-lg border text-sm ${
-              page === totalPages ? "opacity-40 cursor-not-allowed" : "hover:bg-primary-100"
-            }`}
+            className={`px-3 py-1 rounded-lg border text-sm ${page === totalPages ? "opacity-40 cursor-not-allowed" : "hover:bg-primary-100"
+              }`}
           >
             Next
           </button>
@@ -289,7 +286,7 @@ export default function CarListPage() {
 ================================ */
 function FilterDropdown({ label, options, selected, onChange, badge }) {
   const isSelected = selected !== null && selected !== undefined;
-  
+
   return (
     <Menu as="div" className="relative inline-block text-left">
       <MenuButton className="flex items-center gap-1 text-neutral-700 hover:text-black px-3 py-2 border border-neutral-300 rounded-lg hover:bg-neutral-50 transition">
@@ -309,13 +306,12 @@ function FilterDropdown({ label, options, selected, onChange, badge }) {
             <MenuItem key={opt.value ?? 'all'}>
               <button
                 onClick={() => onChange(opt.value === null ? null : (opt.value === selected ? null : opt.value))}
-                className={`flex items-center gap-2 w-full px-3 py-2 text-sm rounded-lg hover:bg-neutral-100 transition ${
-                  isChecked ? 'bg-primary-50 text-primary-700 font-medium' : ''
-                }`}
+                className={`flex items-center gap-2 w-full px-3 py-2 text-sm rounded-lg hover:bg-neutral-100 transition ${isChecked ? 'bg-primary-50 text-primary-700 font-medium' : ''
+                  }`}
               >
-                <input 
-                  type="checkbox" 
-                  readOnly 
+                <input
+                  type="checkbox"
+                  readOnly
                   checked={isChecked}
                   className="cursor-pointer"
                 />

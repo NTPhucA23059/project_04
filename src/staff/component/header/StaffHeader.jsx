@@ -8,11 +8,19 @@ import {
   ChevronDownIcon
 } from "@heroicons/react/24/outline";
 import { useEffect, useRef, useState } from "react";
+import { logout } from "../../../services/common/authService";
+import { getCurrentUser } from "../../../services/common/authService";
 
-export default function StaffHeader({ setIsSidebarOpen, isSidebarOpen }) {
+export default function StaffHeader({ setIsSidebarOpen, isSidebarOpen, setActiveTab }) {
+  const [user, setUser] = useState(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
   const userMenuRef = useRef(null);
+
+  useEffect(() => {
+    const currentUser = getCurrentUser();
+    setUser(currentUser);
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -26,6 +34,19 @@ export default function StaffHeader({ setIsSidebarOpen, isSidebarOpen }) {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+
+  const handleProfileClick = () => {
+    setUserMenuOpen(false);
+    if (setActiveTab) {
+      setActiveTab("profile");
+    }
+  };
+
+  const handleLogout = () => {
+    setUserMenuOpen(false);
+    logout();
+    window.location.href = "/login";
+  };
 
   return (
     <header 
@@ -83,7 +104,9 @@ export default function StaffHeader({ setIsSidebarOpen, isSidebarOpen }) {
                 <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></span>
               </div>
               <div className="hidden lg:block text-left">
-                <p className="text-sm font-semibold text-neutral-900">Staff User</p>
+                <p className="text-sm font-semibold text-neutral-900">
+                  {user?.fullName || user?.username || "Staff User"}
+                </p>
                 <p className="text-xs text-neutral-500">Online</p>
               </div>
               <ChevronDownIcon className={`w-4 h-4 text-neutral-500 transition-transform duration-200 ${
@@ -94,16 +117,17 @@ export default function StaffHeader({ setIsSidebarOpen, isSidebarOpen }) {
             {userMenuOpen && (
               <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-neutral-200 overflow-hidden z-50">
                 <div className="p-4 border-b border-neutral-100 bg-gradient-to-r from-primary-50 to-accent-50">
-                  <p className="text-sm font-semibold text-neutral-900">Staff User</p>
-                  <p className="text-xs text-neutral-600 mt-0.5">staff@example.com</p>
+                  <p className="text-sm font-semibold text-neutral-900">
+                    {user?.fullName || user?.username || "Staff User"}
+                  </p>
+                  <p className="text-xs text-neutral-600 mt-0.5">
+                    {user?.email || user?.username || "staff@example.com"}
+                  </p>
                 </div>
                 <div className="py-2">
                   <button
                     className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-700 hover:bg-primary-50 transition-colors"
-                    onClick={() => {
-                      setUserMenuOpen(false);
-                      // Navigate to profile
-                    }}
+                    onClick={handleProfileClick}
                   >
                     <UserCircleIcon className="w-5 h-5 text-neutral-400" />
                     Profile
@@ -118,10 +142,7 @@ export default function StaffHeader({ setIsSidebarOpen, isSidebarOpen }) {
                   <div className="border-t border-neutral-100 my-1"></div>
                   <button
                     className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                    onClick={() => {
-                      setUserMenuOpen(false);
-                      // Handle logout
-                    }}
+                    onClick={handleLogout}
                   >
                     <ArrowRightOnRectangleIcon className="w-5 h-5" />
                     Logout

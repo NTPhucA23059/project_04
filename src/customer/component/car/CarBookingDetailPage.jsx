@@ -4,6 +4,7 @@ import { formatUSD } from "../../../utils/currency";
 import StatusBadge from "../bookings/StatusBadge";
 import { refundRules } from "../../component/data/mockData";
 import { fetchCarBookingFull, createReview } from "../../../services/customer/carBookingService";
+import { getCarBookingRefund } from "../../../services/customer/refundService";
 
 export default function CarBookingDetailPage() {
     const { state } = useLocation();
@@ -18,6 +19,8 @@ export default function CarBookingDetailPage() {
     const [toastMessage, setToastMessage] = useState("");
     const [showReviewModal, setShowReviewModal] = useState(false);
     const [review, setReview] = useState({ rating: 5, comment: "" });
+    const [refund, setRefund] = useState(null); // Refund information if exists
+    const [previousRefundStatus, setPreviousRefundStatus] = useState(null); // Track previous refund status for notification
 
     useEffect(() => {
         const load = async () => {
@@ -43,7 +46,33 @@ export default function CarBookingDetailPage() {
 
             try {
                 const full = await fetchCarBookingFull(id);
-                setBooking(mapFullToUI(full));
+                const mappedBooking = mapFullToUI(full);
+                setBooking(mappedBooking);
+
+                // Fetch refund info for car booking
+                try {
+                    const refundData = await getCarBookingRefund(mappedBooking.carBookingID);
+                    if (refundData) {
+                        // Check if refund status changed from pending (0) to processed (1)
+                        if (previousRefundStatus === 0 && refundData.refundStatus === 1) {
+                            // Show notification that refund has been confirmed
+                            window.dispatchEvent(new CustomEvent('toast', {
+                                detail: {
+                                    type: 'success',
+                                    message: 'Your refund has been confirmed and processed!'
+                                }
+                            }));
+                        }
+                        setPreviousRefundStatus(refundData.refundStatus);
+                        setRefund(refundData);
+                    } else {
+                        setPreviousRefundStatus(null);
+                    }
+                } catch (refundErr) {
+                    // No refund found - might be auto-cancelled or no refund request
+                    setRefund(null);
+                    setPreviousRefundStatus(null);
+                }
             } catch (err) {
                 setError(err.message || "Cannot load car booking.");
             } finally {
@@ -186,6 +215,39 @@ export default function CarBookingDetailPage() {
     };
 
     // ===========================================
+    // POLL FOR REFUND STATUS UPDATES
+    // ===========================================
+    useEffect(() => {
+        if (!refund || refund.refundStatus !== 0 || !booking) return;
+
+        const bookingId = booking?.carBookingID;
+        if (!bookingId) return;
+
+        const pollInterval = setInterval(async () => {
+            try {
+                const refundData = await getCarBookingRefund(bookingId);
+                if (refundData && refundData.refundStatus === 1 && refund.refundStatus === 0) {
+                    // Refund has been confirmed
+                    window.dispatchEvent(new CustomEvent('toast', {
+                        detail: {
+                            type: 'success',
+                            message: 'Your refund has been confirmed and processed!'
+                        }
+                    }));
+                    setPreviousRefundStatus(1);
+                    setRefund(refundData);
+                    clearInterval(pollInterval);
+                }
+            } catch (err) {
+                // Ignore errors during polling
+                console.error('Error polling refund status:', err);
+            }
+        }, 10000); // Poll every 10 seconds
+
+        return () => clearInterval(pollInterval);
+    }, [refund, booking]);
+
+    // ===========================================
     // SUBMIT REFUND REQUEST
     // ===========================================
     const handleSubmitRefund = () => {
@@ -305,6 +367,120 @@ export default function CarBookingDetailPage() {
                         </table>
                     </div>
                 </div>
+
+                {/* Refund Information */}
+                {refund && (
+                    <div className="border-t pt-6">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-3">Refund Information</h3>
+                        {refund.refundStatus === 0 ? (
+                            // Pending confirmation - Waiting for staff confirmation
+                            <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-4 space-y-3">
+                                <div className="flex items-center gap-2">
+                                    <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <span className="font-semibold text-yellow-800 text-base">
+                                        Waiting for Staff Confirmation
+                                    </span>
+                                </div>
+                                <p className="text-sm text-yellow-700">
+                                    Your refund request is being processed. Staff will confirm and process the refund as soon as possible.
+                                </p>
+                                <div className="pt-2 border-t border-yellow-200 space-y-2 text-sm">
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Refund Percentage:</span>
+                                        <span className="font-semibold">{refund.refundPercentage}%</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Expected Refund Amount:</span>
+                                        <span className="font-bold text-green-700">
+                                            {formatUSD(refund.refundAmount || 0)}
+                                        </span>
+                                    </div>
+                                    {refund.cancelDate && (
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-600">Request Date:</span>
+                                            <span className="font-medium">
+                                                {new Date(refund.cancelDate).toLocaleDateString("en-US", {
+                                                    year: "numeric",
+                                                    month: "short",
+                                                    day: "numeric",
+                                                })}
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ) : refund.refundStatus === 1 ? (
+                            // Confirmed refund - Show reason
+                            <div className="bg-green-50 border border-green-300 rounded-lg p-4 space-y-3">
+                                <div className="flex items-center gap-2">
+                                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <span className="font-semibold text-green-800 text-base">
+                                        Refund Processed
+                                    </span>
+                                </div>
+                                {refund.refundReason && (
+                                    <div className="bg-white rounded-lg p-3 border border-green-200">
+                                        <p className="text-sm font-medium text-gray-700 mb-1">Refund Reason:</p>
+                                        <p className="text-sm text-gray-800">{refund.refundReason}</p>
+                                    </div>
+                                )}
+                                <div className="pt-2 border-t border-green-200 space-y-2 text-sm">
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Refund Percentage:</span>
+                                        <span className="font-semibold">{refund.refundPercentage}%</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Refund Amount:</span>
+                                        <span className="font-bold text-green-700 text-lg">
+                                            {formatUSD(refund.refundAmount || 0)}
+                                        </span>
+                                    </div>
+                                    {refund.cancelDate && (
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-600">Request Date:</span>
+                                            <span className="font-medium">
+                                                {new Date(refund.cancelDate).toLocaleDateString("en-US", {
+                                                    year: "numeric",
+                                                    month: "short",
+                                                    day: "numeric",
+                                                })}
+                                            </span>
+                                        </div>
+                                    )}
+                                    {refund.processedDate && (
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-600">Processed Date:</span>
+                                            <span className="font-medium">
+                                                {new Date(refund.processedDate).toLocaleDateString("en-US", {
+                                                    year: "numeric",
+                                                    month: "short",
+                                                    day: "numeric",
+                                                })}
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ) : (
+                            // Rejected or other status
+                            <div className="bg-red-50 border border-red-300 rounded-lg p-4 space-y-2 text-sm">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <span className="font-semibold text-red-800">Refund Rejected</span>
+                                </div>
+                                {refund.refundReason && (
+                                    <div className="bg-white rounded-lg p-3 border border-red-200">
+                                        <p className="text-xs font-medium text-gray-700 mb-1">Reason:</p>
+                                        <p className="text-sm text-gray-800">{refund.refundReason}</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {/* NOTES */}
                 {booking.Notes && (

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { analyzePackageSales } from "../../../services/staff/salesAnalysisStaffService";
+import { analyzeCarRentalSales } from "../../../services/staff/salesAnalysisStaffService";
 
 // Exchange rate: 1 USD = 25,000 VND
 const VND_TO_USD_RATE = 25000;
@@ -14,7 +14,7 @@ const formatUSD = (amount) => {
   return `$${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
 
-export default function PackageSalesAnalysis() {
+export default function CarRentalSalesAnalysis() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -22,7 +22,7 @@ export default function PackageSalesAnalysis() {
   // Date filters
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [tourDetailID, setTourDetailID] = useState("");
+  const [carID, setCarID] = useState("");
 
   // Load data
   const loadData = async () => {
@@ -32,9 +32,9 @@ export default function PackageSalesAnalysis() {
       const params = {};
       if (startDate) params.startDate = startDate;
       if (endDate) params.endDate = endDate;
-      if (tourDetailID) params.tourDetailID = Number(tourDetailID);
+      if (carID) params.carID = Number(carID);
 
-      const result = await analyzePackageSales(params);
+      const result = await analyzeCarRentalSales(params);
       setData(result);
     } catch (err) {
       console.error("Failed to load sales analysis", err);
@@ -65,7 +65,7 @@ export default function PackageSalesAnalysis() {
       try {
         setLoading(true);
         setError("");
-        const result = await analyzePackageSales({
+        const result = await analyzeCarRentalSales({
           startDate: startDateStr,
           endDate: endDateStr,
         });
@@ -117,11 +117,11 @@ export default function PackageSalesAnalysis() {
         ...d,
         revenue: vndToUsd(Number(d.revenue || 0)),
       })),
-      topTours: (data.topToursByRevenue || []).map((tour) => ({
-        ...tour,
-        revenue: vndToUsd(Number(tour.revenue || 0)),
-        averageOrderValue: tour.averageOrderValue
-          ? vndToUsd(Number(tour.averageOrderValue))
+      topCars: (data.topToursByRevenue || []).map((car) => ({
+        ...car,
+        revenue: vndToUsd(Number(car.revenue || 0)),
+        averageOrderValue: car.averageOrderValue
+          ? vndToUsd(Number(car.averageOrderValue))
           : null,
       })),
     };
@@ -134,10 +134,10 @@ export default function PackageSalesAnalysis() {
       {/* Header */}
       <div>
         <h2 className="text-2xl font-bold text-neutral-900">
-          Package Service Sales Analysis
+          Car Rental Sales Analysis
         </h2>
         <p className="text-sm text-neutral-600 mt-1">
-          Analyze sales performance and revenue trends
+          Analyze car rental sales performance and revenue trends
         </p>
       </div>
 
@@ -168,13 +168,13 @@ export default function PackageSalesAnalysis() {
           </div>
           <div>
             <label className="block text-xs font-medium text-neutral-700 mb-1">
-              Tour Detail ID (Optional)
+              Car ID (Optional)
             </label>
             <input
               type="number"
-              value={tourDetailID}
-              onChange={(e) => setTourDetailID(e.target.value)}
-              placeholder="Filter by tour"
+              value={carID}
+              onChange={(e) => setCarID(e.target.value)}
+              placeholder="Filter by car"
               className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
             />
           </div>
@@ -212,8 +212,8 @@ export default function PackageSalesAnalysis() {
               label="Paid Revenue"
               value={vndToUsd(Number(data.paidRevenue || 0))}
             />
-            <StatCard label="Total Bookings" value={data.totalBookings || 0} />
-            <StatCard label="Paid Bookings" value={data.paidBookings || 0} />
+            <StatCard label="Total Rentals" value={data.totalBookings || 0} />
+            <StatCard label="Paid Rentals" value={data.paidBookings || 0} />
           </div>
 
           {/* Revenue by Payment Method */}
@@ -265,7 +265,7 @@ export default function PackageSalesAnalysis() {
                 )}
               </Panel>
 
-              <Panel title="Revenue by Order Status">
+              <Panel title="Revenue by Booking Status">
                 {chartData?.revenueByOrderStatus?.length > 0 ? (
                   <>
                     <BarList
@@ -285,7 +285,7 @@ export default function PackageSalesAnalysis() {
                 )}
               </Panel>
 
-              <Panel title="Bookings by Payment Method">
+              <Panel title="Rentals by Payment Method">
                 {chartData?.bookingsByPaymentMethod?.length > 0 ? (
                   <BarList
                     data={chartData.bookingsByPaymentMethod}
@@ -333,10 +333,10 @@ export default function PackageSalesAnalysis() {
             </div>
           </Section>
 
-          {/* Top Tours */}
-          <Section title="Top Tours by Revenue">
-            <Panel title="Top 10 Tours">
-              {chartData?.topTours?.length > 0 ? (
+          {/* Top Cars */}
+          <Section title="Top Cars by Revenue">
+            <Panel title="Top 10 Cars">
+              {chartData?.topCars?.length > 0 ? (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="bg-primary-50 text-neutral-700 border-b border-primary-200">
@@ -345,16 +345,16 @@ export default function PackageSalesAnalysis() {
                           Rank
                         </th>
                         <th className="px-4 py-3 text-left font-semibold">
-                          Tour Code
+                          Car Code
                         </th>
                         <th className="px-4 py-3 text-left font-semibold">
-                          Tour Name
+                          Car Name
                         </th>
                         <th className="px-4 py-3 text-right font-semibold">
                           Revenue
                         </th>
                         <th className="px-4 py-3 text-right font-semibold">
-                          Bookings
+                          Rentals
                         </th>
                         <th className="px-4 py-3 text-right font-semibold">
                           Avg Order Value
@@ -362,29 +362,29 @@ export default function PackageSalesAnalysis() {
                       </tr>
                     </thead>
                     <tbody>
-                      {chartData.topTours.map((tour, idx) => (
+                      {chartData.topCars.map((car, idx) => (
                         <tr
-                          key={tour.tourDetailID}
+                          key={car.tourDetailID}
                           className="border-b border-neutral-100 hover:bg-primary-50/30 transition"
                         >
                           <td className="px-4 py-3 font-semibold text-neutral-900">
                             #{idx + 1}
                           </td>
                           <td className="px-4 py-3 text-neutral-700">
-                            {tour.tourCode || "N/A"}
+                            {car.tourCode || "N/A"}
                           </td>
                           <td className="px-4 py-3 text-neutral-700">
-                            {tour.tourName || "N/A"}
+                            {car.tourName || "N/A"}
                           </td>
                           <td className="px-4 py-3 text-right font-semibold text-primary-600">
-                            {formatUSD(tour.revenue || 0)}
+                            {formatUSD(car.revenue || 0)}
                           </td>
                           <td className="px-4 py-3 text-right text-neutral-700">
-                            {tour.bookingCount || 0}
+                            {car.bookingCount || 0}
                           </td>
                           <td className="px-4 py-3 text-right text-neutral-700">
-                            {tour.averageOrderValue
-                              ? formatUSD(tour.averageOrderValue)
+                            {car.averageOrderValue
+                              ? formatUSD(car.averageOrderValue)
                               : "N/A"}
                           </td>
                         </tr>
@@ -403,7 +403,7 @@ export default function PackageSalesAnalysis() {
   );
 }
 
-// Reusable components
+// Reusable components (same as PackageSalesAnalysis)
 function StatCard({ label, value, accent }) {
   return (
     <div className="bg-white border border-neutral-200 rounded-xl p-5 shadow-sm hover:shadow-md transition">
@@ -618,3 +618,4 @@ function LineChart({ data, color }) {
     </div>
   );
 }
+
