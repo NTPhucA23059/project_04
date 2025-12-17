@@ -31,29 +31,64 @@ export default function CarDetailWrapper() {
     if (error) return <p className="p-10 text-center text-red-500">{error}</p>;
     if (!car) return <p className="p-10 text-center text-red-500">Car not found.</p>;
 
-    // Convert relative URL to absolute URL
+    // Convert relative URL to absolute URL with better handling
     const toAbsoluteUrl = (url) => {
-        if (!url) return "";
+        if (!url || typeof url !== 'string') return null;
+        
+        // Already absolute URL
         if (/^https?:\/\//.test(url)) return url;
-        const base = (api.defaults.baseURL || "").replace(/\/$/, "");
-        return `${base}/${url.replace(/^\/+/, "")}`;
+        
+        // If it's already a full path starting with /, keep it
+        if (url.startsWith('/')) {
+            const base = (api.defaults.baseURL || window.location.origin).replace(/\/$/, "");
+            return `${base}${url}`;
+        }
+        
+        // Relative path - need to add base URL
+        const base = (api.defaults.baseURL || window.location.origin).replace(/\/$/, "");
+        const cleanUrl = url.replace(/^\/+/, "");
+        return `${base}/${cleanUrl}`;
     };
 
     // Map images (API: imageUrl) to structure CarGallery expects
     // Normalize image URLs to absolute URLs
-    const images = (car.images || []).map((img) => {
-        const imageUrl = img.imageUrl || img.ImageUrl || img.image || img.url;
-        return {
-            ImageID: img.imageID || img.ImageID,
-            ImageUrl: toAbsoluteUrl(imageUrl),
-        };
-    }).filter((i) => i.ImageUrl);
-
-    // Nếu không có images, thêm main image từ car object
-    if (images.length === 0 && car.image) {
+    let images = [];
+    
+    // First, try to get images from car.images array
+    if (car.images && car.images.length > 0) {
+        images = car.images
+            .map((img) => {
+                const imageUrl = img.imageUrl || img.ImageUrl || img.image || img.url;
+                const absoluteUrl = toAbsoluteUrl(imageUrl);
+                if (!absoluteUrl) return null;
+                
+                return {
+                    ImageID: img.imageID || img.ImageID || img.imageId || 0,
+                    ImageUrl: absoluteUrl,
+                };
+            })
+            .filter((i) => i && i.ImageUrl);
+    }
+    
+    // If no images from array, try main image from car object
+    if (images.length === 0) {
+        const mainImageUrl = car.image || car.imageUrl || car.ImageUrl || car.Image || car.MainImage;
+        if (mainImageUrl) {
+            const absoluteUrl = toAbsoluteUrl(mainImageUrl);
+            if (absoluteUrl) {
+                images.push({
+                    ImageID: 0,
+                    ImageUrl: absoluteUrl,
+                });
+            }
+        }
+    }
+    
+    // If still no images, use placeholder
+    if (images.length === 0) {
         images.push({
             ImageID: 0,
-            ImageUrl: toAbsoluteUrl(car.image || car.imageUrl || car.ImageUrl),
+            ImageUrl: "https://placehold.co/800x500?text=Car+Image",
         });
     }
 

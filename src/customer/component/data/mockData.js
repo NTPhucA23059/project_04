@@ -864,40 +864,40 @@ export const cars = [
 
 export const refundRules = [
   {
-    MinDaysBefore: 5,        // Hủy trước >= 5 ngày
-    MaxDaysBefore: 999,      // Không giới hạn trên (5 ngày trở lên)
-    RefundPercentage: 95,    // Hoàn 95%
-    Label: "Hủy trước ≥ 5 ngày: hoàn 95%",
+    MinDaysBefore: 5,        // Cancel >= 5 days before
+    MaxDaysBefore: 999,      // No upper limit (5 days or more)
+    RefundPercentage: 95,    // Refund 95%
+    Label: "Cancel ≥ 5 days before: 95% refund",
   },
   {
-    MinDaysBefore: 4,        // Hủy trước 4 ngày
+    MinDaysBefore: 4,        // Cancel 4 days before
     MaxDaysBefore: 4,
     RefundPercentage: 90,
-    Label: "Hủy trước 4 ngày: hoàn 90%",
+    Label: "Cancel 4 days before: 90% refund",
   },
   {
-    MinDaysBefore: 3,        // Hủy trước 3 ngày
+    MinDaysBefore: 3,        // Cancel 3 days before
     MaxDaysBefore: 3,
     RefundPercentage: 85,
-    Label: "Hủy trước 3 ngày: hoàn 85%",
+    Label: "Cancel 3 days before: 85% refund",
   },
   {
-    MinDaysBefore: 2,        // Hủy trước 2 ngày
+    MinDaysBefore: 2,        // Cancel 2 days before
     MaxDaysBefore: 2,
     RefundPercentage: 80,
-    Label: "Hủy trước 2 ngày: hoàn 80%",
+    Label: "Cancel 2 days before: 80% refund",
   },
   {
-    MinDaysBefore: 1,        // Hủy trước 1 ngày
+    MinDaysBefore: 1,        // Cancel 1 day before
     MaxDaysBefore: 1,
     RefundPercentage: 75,
-    Label: "Hủy trước 1 ngày: hoàn 75%",
+    Label: "Cancel 1 day before: 75% refund",
   },
   {
-    MinDaysBefore: 0,        // Hủy đúng ngày khởi hành
+    MinDaysBefore: 0,        // Cancel on departure day
     MaxDaysBefore: 0,
-    RefundPercentage: 0,     // Không hoàn
-    Label: "Hủy trong ngày khởi hành: không hoàn tiền",
+    RefundPercentage: 0,     // No refund
+    Label: "Cancel on departure day: no refund",
   },
 ];
 

@@ -1,5 +1,6 @@
 import { useLocation, Link } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { formatUSD } from "../../../utils/currency";
 import StatusBadge from "../bookings/StatusBadge";
 import { refundRules } from "../../component/data/mockData";
 import { fetchCarBookingFull, createReview } from "../../../services/customer/carBookingService";
@@ -271,14 +272,14 @@ export default function CarBookingDetailPage() {
                             <tbody>
                                 <tr className="border-t">
                                     <td className="p-3">Base Amount</td>
-                                    <td className="p-3 text-right">${booking.BaseAmount}</td>
+                                    <td className="p-3 text-right">{formatUSD(booking.BaseAmount)}</td>
                                 </tr>
 
                                 {booking.HasLateReturn && (
                                     <tr className="border-t">
                                         <td className="p-3">Late Fee</td>
                                         <td className="p-3 text-right text-red-600">
-                                            + ${booking.LateFee}
+                                            + {formatUSD(booking.LateFee)}
                                         </td>
                                     </tr>
                                 )}
@@ -287,7 +288,7 @@ export default function CarBookingDetailPage() {
                                     <tr className="border-t">
                                         <td className="p-3">Extra KM Fee</td>
                                         <td className="p-3 text-right text-red-600">
-                                            + ${booking.ExtraKMFee}
+                                            + {formatUSD(booking.ExtraKMFee)}
                                         </td>
                                     </tr>
                                 )}
@@ -297,7 +298,7 @@ export default function CarBookingDetailPage() {
                                 <tr className="border-t bg-primary-50">
                                     <td className="p-3 font-bold">Final Total</td>
                                     <td className="p-3 text-right font-bold text-primary-700 text-lg">
-                                        ${booking.FinalTotal.toLocaleString()}
+                                        {formatUSD(booking.FinalTotal)}
                                     </td>
                                 </tr>
                             </tfoot>
@@ -357,7 +358,7 @@ export default function CarBookingDetailPage() {
                             <p><strong>Days before pickup:</strong> {refundInfo.daysBefore}</p>
                             <p><strong>Refund Rate:</strong> {refundInfo.percent}%</p>
                             <p className="text-md font-bold text-green-700 mt-3">
-                                Refund Amount: ${refundInfo.refundAmount}
+                                Refund Amount: {formatUSD(refundInfo.refundAmount)}
                             </p>
                         </div>
 

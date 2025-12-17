@@ -45,9 +45,10 @@ export const getFullBookingById = async (id) => {
 /**
  * Update payment status (for COD bookings when customer pays at office)
  */
-export const updatePaymentStatus = async (bookingID, paymentStatus) => {
+export const updatePaymentStatus = async (bookingID, paymentStatus, processedBy = null) => {
   const res = await api.put(`${BASE}/${bookingID}/payment-status`, {
     paymentStatus,
+    processedBy, // Staff accountID who processed the payment
   });
   return res.data;
 };

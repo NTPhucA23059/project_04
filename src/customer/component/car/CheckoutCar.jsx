@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { FaMapMarkerAlt, FaUser, FaPhone, FaEnvelope } from "react-icons/fa";
 import { refundRules } from "../../component/data/mockData";
 import { getCurrentUser } from "../../../services/common/authService";
 import { createCustomerInfo } from "../../../services/customer/bookingService";
 import { createCarBooking } from "../../../services/customer/carBookingService";
+import { formatUSD } from "../../../utils/currency";
+import api from "../../../services/api";
 
 export default function CheckoutCar() {
     const { state } = useLocation();
@@ -21,17 +23,54 @@ export default function CheckoutCar() {
         email: "",
         citizenId: "",
         pickupDate: "",
-        pickupTime: "",
+        pickupTime: "09:00",
         pickupLocation: "",
         dropoffDate: "",
-        dropoffTime: "",
+        dropoffTime: "17:00",
         dropoffLocation: "",
         paymentMethod: "",
         notes: "",
+        needDriver: false,
+        needAirConditioner: true,
     });
 
+    // Auto-fill user info if logged in
+    useEffect(() => {
+        const user = getCurrentUser();
+        if (user) {
+            setForm(prev => ({
+                ...prev,
+                email: user.email || prev.email,
+                fullName: user.fullName || user.name || prev.fullName,
+                phone: user.phone || prev.phone,
+            }));
+        }
+    }, []);
+
+    // Get minimum date (today)
+    const getMinDate = () => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        return today.toISOString().split('T')[0];
+    };
+
+    // Get minimum time for dropoff if same day as pickup
+    const getMinTime = () => {
+        if (form.pickupDate === form.dropoffDate && form.pickupTime) {
+            const [hours, minutes] = form.pickupTime.split(':');
+            const nextHour = String(parseInt(hours) + 1).padStart(2, '0');
+            return `${nextHour}:${minutes}`;
+        }
+        return "00:00";
+    };
+
     if (!car) {
-        return <p className="p-10 text-center text-neutral-600">Đang tải dữ liệu…</p>;
+        return (
+            <div className="p-10 text-center text-neutral-600">
+                <p>Loading car information...</p>
+                <p className="text-sm mt-2">If this persists, please go back and select a car.</p>
+            </div>
+        );
     }
 
     const update = (field, value) => {
@@ -81,19 +120,30 @@ export default function CheckoutCar() {
         const dropoff = new Date(form.dropoffDate + " " + form.dropoffTime);
 
         if (form.pickupDate) {
-            if (new Date(form.pickupDate) <= today) {
-                newErrors.pickupDate = "Ngày nhận xe phải là ngày trong tương lai";
+            const pickupDateOnly = new Date(form.pickupDate);
+            pickupDateOnly.setHours(0, 0, 0, 0);
+            if (pickupDateOnly < today) {
+                newErrors.pickupDate = "Pickup date must be today or later";
             }
         }
 
         if (form.dropoffDate) {
-            if (new Date(form.dropoffDate) <= today) {
-                newErrors.dropoffDate = "Ngày trả xe phải là ngày trong tương lai";
+            const dropoffDateOnly = new Date(form.dropoffDate);
+            dropoffDateOnly.setHours(0, 0, 0, 0);
+            if (dropoffDateOnly < today) {
+                newErrors.dropoffDate = "Dropoff date must be today or later";
             }
         }
 
-        if (form.pickupDate && form.dropoffDate && dropoff <= pickup) {
-            newErrors.dropoffDate = "Ngày trả xe phải sau ngày nhận xe";
+        if (form.pickupDate && form.dropoffDate) {
+            const pickupDateOnly = new Date(form.pickupDate);
+            const dropoffDateOnly = new Date(form.dropoffDate);
+            pickupDateOnly.setHours(0, 0, 0, 0);
+            dropoffDateOnly.setHours(0, 0, 0, 0);
+            
+            if (dropoffDateOnly < pickupDateOnly) {
+                newErrors.dropoffDate = "Dropoff date must be on or after pickup date";
+            }
         }
 
         if (
@@ -102,7 +152,7 @@ export default function CheckoutCar() {
             form.dropoffTime &&
             form.dropoffTime <= form.pickupTime
         ) {
-            newErrors.dropoffTime = "Giờ trả xe phải sau giờ nhận xe";
+            newErrors.dropoffTime = "Dropoff time must be after pickup time";
         }
 
         if (!form.paymentMethod) {
@@ -110,7 +160,7 @@ export default function CheckoutCar() {
         }
 
         if (!agree) {
-            newErrors.agree = "Bạn phải đồng ý với chính sách hoàn tiền";
+            newErrors.agree = "You must agree to the refund policy";
         }
 
         setErrors(newErrors);
@@ -121,17 +171,29 @@ export default function CheckoutCar() {
     // RENTAL DAYS & TOTAL
     // =====================
     const dailyRate = Number(car.DailyRate ?? car.dailyRate ?? 0);
+    const baseDailyRate = dailyRate;
 
+    // Calculate rental days
     const days =
         form.pickupDate && form.dropoffDate
             ? Math.max(
                 1,
-                (new Date(form.dropoffDate) - new Date(form.pickupDate)) /
-                (1000 * 60 * 60 * 24)
+                Math.ceil(
+                    (new Date(form.dropoffDate) - new Date(form.pickupDate)) /
+                    (1000 * 60 * 60 * 24)
+                )
             )
             : 0;
 
-    const total = days * dailyRate;
+    // Calculate base amount
+    let baseAmount = days * baseDailyRate;
+    
+    // Add optional services (if applicable - you may need to adjust based on your API)
+    // For now, these are included in the base rate, but you can add extras here
+    // const driverFee = form.needDriver ? days * 500000 : 0; // Example: 500k/day for driver
+    // baseAmount += driverFee;
+    
+    const total = baseAmount;
 
     // =====================
     // SUBMIT
@@ -182,8 +244,10 @@ export default function CheckoutCar() {
                 carID,
                 pickupDate: new Date(form.pickupDate + "T" + pickupTime).toISOString(),
                 dropoffDate: new Date(form.dropoffDate + "T" + dropoffTime).toISOString(),
-                needDriver: false,
-                needAirConditioner: false,
+                pickupLocation: form.pickupLocation,
+                dropoffLocation: form.dropoffLocation,
+                needDriver: form.needDriver || false,
+                needAirConditioner: form.needAirConditioner !== false, // Default to true if car has AC
                 baseAmount: total,
                 finalTotal: total,
                 paymentMethod: form.paymentMethod,
@@ -191,6 +255,7 @@ export default function CheckoutCar() {
                 bookingCode,
                 bookingStatus,
                 cancelDeadline,
+                notes: form.notes || null,
             };
 
             const booking = await createCarBooking(bookingData);
@@ -289,19 +354,32 @@ export default function CheckoutCar() {
                     <h2 className="text-xl font-bold mb-2">Thông Tin Nhận Xe</h2>
 
                     <div className="grid grid-cols-2 gap-4">
-                        <input
-                            type="date"
-                            className={`${inputStyle} ${errors.pickupDate ? "border-red-500" : ""}`}
-                            value={form.pickupDate}
-                            onChange={(e) => update("pickupDate", e.target.value)}
-                        />
+                        <div>
+                            <input
+                                type="date"
+                                min={getMinDate()}
+                                className={`${inputStyle} ${errors.pickupDate ? "border-red-500" : ""}`}
+                                value={form.pickupDate}
+                                onChange={(e) => {
+                                    update("pickupDate", e.target.value);
+                                    // Auto-set dropoff date to at least pickup date
+                                    if (form.dropoffDate && new Date(e.target.value) > new Date(form.dropoffDate)) {
+                                        update("dropoffDate", e.target.value);
+                                    }
+                                }}
+                            />
+                            <p className="text-xs text-neutral-500 mt-1">Select pickup date</p>
+                        </div>
 
-                        <input
-                            type="time"
-                            className={inputStyle}
-                            value={form.pickupTime}
-                            onChange={(e) => update("pickupTime", e.target.value)}
-                        />
+                        <div>
+                            <input
+                                type="time"
+                                className={inputStyle}
+                                value={form.pickupTime}
+                                onChange={(e) => update("pickupTime", e.target.value)}
+                            />
+                            <p className="text-xs text-neutral-500 mt-1">Pickup time</p>
+                        </div>
                     </div>
 
                     {errors.pickupDate && <p className="text-red-500 text-sm">{errors.pickupDate}</p>}
@@ -325,18 +403,26 @@ export default function CheckoutCar() {
                     <h2 className="text-xl font-bold mb-2">Thông Tin Trả Xe</h2>
 
                     <div className="grid grid-cols-2 gap-4">
-                        <input
-                            type="date"
-                            className={`${inputStyle} ${errors.dropoffDate ? "border-red-500" : ""}`}
-                            value={form.dropoffDate}
-                            onChange={(e) => update("dropoffDate", e.target.value)}
-                        />
-                        <input
-                            type="time"
-                            className={inputStyle}
-                            value={form.dropoffTime}
-                            onChange={(e) => update("dropoffTime", e.target.value)}
-                        />
+                        <div>
+                            <input
+                                type="date"
+                                min={form.pickupDate || getMinDate()}
+                                className={`${inputStyle} ${errors.dropoffDate ? "border-red-500" : ""}`}
+                                value={form.dropoffDate}
+                                onChange={(e) => update("dropoffDate", e.target.value)}
+                            />
+                            <p className="text-xs text-neutral-500 mt-1">Select dropoff date</p>
+                        </div>
+                        <div>
+                            <input
+                                type="time"
+                                min={form.pickupDate === form.dropoffDate ? getMinTime() : undefined}
+                                className={`${inputStyle} ${errors.dropoffTime ? "border-red-500" : ""}`}
+                                value={form.dropoffTime}
+                                onChange={(e) => update("dropoffTime", e.target.value)}
+                            />
+                            <p className="text-xs text-neutral-500 mt-1">Dropoff time</p>
+                        </div>
                     </div>
 
                     {errors.dropoffDate && <p className="text-red-500 text-sm">{errors.dropoffDate}</p>}
@@ -356,9 +442,48 @@ export default function CheckoutCar() {
                     )}
                 </div>
 
+                {/* ADDITIONAL OPTIONS */}
+                <div className="p-5 border rounded-xl bg-white">
+                    <h2 className="text-xl font-bold mb-4">Additional Options</h2>
+                    
+                    <div className="space-y-3">
+                        <label className="flex items-center gap-3 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={form.needAirConditioner}
+                                onChange={(e) => update("needAirConditioner", e.target.checked)}
+                                className="w-5 h-5 text-primary-600 rounded border-neutral-300 focus:ring-primary-500"
+                                disabled={!(car.HasAirConditioner ?? car.hasAirConditioner ?? false)}
+                            />
+                            <div>
+                                <span className="font-medium">Air Conditioner</span>
+                                {!(car.HasAirConditioner ?? car.hasAirConditioner ?? false) && (
+                                    <span className="text-xs text-neutral-500 ml-2">(Not available for this car)</span>
+                                )}
+                            </div>
+                        </label>
+
+                        <label className="flex items-center gap-3 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={form.needDriver}
+                                onChange={(e) => update("needDriver", e.target.checked)}
+                                className="w-5 h-5 text-primary-600 rounded border-neutral-300 focus:ring-primary-500"
+                                disabled={!(car.HasDriverOption ?? car.hasDriverOption ?? false)}
+                            />
+                            <div>
+                                <span className="font-medium">Include Driver</span>
+                                {!(car.HasDriverOption ?? car.hasDriverOption ?? false) && (
+                                    <span className="text-xs text-neutral-500 ml-2">(Not available for this car)</span>
+                                )}
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
                 {/* PAYMENT METHOD */}
                 <div className="p-5 border rounded-xl bg-white">
-                    <h2 className="text-xl font-bold mb-2">Phương Thức Thanh Toán</h2>
+                    <h2 className="text-xl font-bold mb-2">Payment Method</h2>
 
                     <div className="space-y-2 text-sm">
                         <label className="flex items-center gap-2">
@@ -373,8 +498,8 @@ export default function CheckoutCar() {
                         </label>
 
                         {form.paymentMethod === "OFFICE" && (
-                            <p className="ml-6 text-red-600">
-                                ⚠ Bạn phải đến trụ sở thanh toán trong 24 giờ sau khi đặt xe.
+                            <p className="ml-6 text-amber-600 text-sm bg-amber-50 p-2 rounded">
+                                ⚠ You must pay at our office within 24 hours after booking, or your reservation will be cancelled.
                             </p>
                         )}
 
@@ -408,7 +533,7 @@ export default function CheckoutCar() {
 
                 {/* REFUND POLICY */}
                 <div className="p-5 border rounded-xl bg-white">
-                    <h2 className="text-xl font-bold mb-2">Chính Sách Hoàn Tiền</h2>
+                    <h2 className="text-xl font-bold mb-2">Refund Policy</h2>
                     <ul className="text-sm text-gray-700 space-y-1">
                         {refundRules.map((r, i) => (
                             <li key={i}>• {r.Label}</li>
@@ -424,7 +549,7 @@ export default function CheckoutCar() {
                         onChange={(e) => setAgree(e.target.checked)}
                     />
                     <span className="text-sm">
-                        Tôi đồng ý với các điều khoản và chính sách hoàn tiền của dịch vụ.
+                        I agree to the terms and refund policy of the service.
                     </span>
                 </label>
                 {errors.agree && <p className="text-red-500 text-sm">{errors.agree}</p>}
@@ -438,24 +563,60 @@ export default function CheckoutCar() {
                 <h2 className="text-lg font-bold mb-4">Tổng Quan Chi Phí</h2>
 
                 <div className="flex gap-4 mb-4">
-                    <img src={car.ImageUrl} className="w-28 h-20 rounded-lg object-cover" />
-                    <div>
-                        <p className="font-semibold">{car.ModelName}</p>
-                        <p className="text-neutral-600 text-sm">{car.Transmission}</p>
-                        <p className="font-bold text-primary-600">${car.DailyRate}/ngày</p>
+                    <img 
+                        src={(() => {
+                            const imgUrl = car.image || car.imageUrl || car.ImageUrl || car.Image || car.MainImage ||
+                                          (car.images && car.images.length > 0 ? (car.images[0].imageUrl || car.images[0].ImageUrl) : null);
+                            if (!imgUrl) return "https://placehold.co/200x150?text=Car";
+                            if (/^https?:\/\//.test(imgUrl)) return imgUrl;
+                            const base = (api.defaults.baseURL || window.location.origin).replace(/\/$/, "");
+                            return imgUrl.startsWith('/') ? `${base}${imgUrl}` : `${base}/${imgUrl.replace(/^\/+/, "")}`;
+                        })()}
+                        alt={car.ModelName || car.modelName || "Car"}
+                        className="w-28 h-20 rounded-lg object-cover border bg-neutral-100"
+                        onError={(e) => {
+                            e.target.src = "https://placehold.co/200x150?text=Car";
+                            e.target.onerror = null;
+                        }}
+                    />
+                    <div className="flex-1">
+                        <p className="font-semibold text-lg">{car.ModelName || car.modelName}</p>
+                        <p className="text-neutral-600 text-sm">{car.Brand || car.brand} • {car.Transmission || car.transmission}</p>
+                        <p className="font-bold text-primary-600 mt-1">{formatUSD(baseDailyRate)}/day</p>
                     </div>
                 </div>
 
-                <div className="border-t pt-4 text-sm space-y-2">
-                    <p className="flex justify-between">
-                        <span>Số ngày thuê</span>
-                        <span>{days} ngày</span>
-                    </p>
+                <div className="border-t pt-4 text-sm space-y-3">
+                    <div className="flex justify-between">
+                        <span className="text-neutral-600">Rental Period</span>
+                        <span className="font-medium">
+                            {days} {days === 1 ? 'day' : 'days'}
+                        </span>
+                    </div>
+                    
+                    <div className="flex justify-between">
+                        <span className="text-neutral-600">Daily Rate</span>
+                        <span className="font-medium">{formatUSD(baseDailyRate)}</span>
+                    </div>
 
-                    <p className="flex justify-between font-bold text-lg pt-2 border-t mt-3 text-primary-700">
-                        <span>Tổng tiền</span>
-                        <span>${total.toLocaleString()}</span>
-                    </p>
+                    {form.needDriver && (
+                        <div className="flex justify-between text-neutral-600">
+                            <span>Driver Service</span>
+                            <span>Included</span>
+                        </div>
+                    )}
+
+                    {form.needAirConditioner && (
+                        <div className="flex justify-between text-neutral-600">
+                            <span>Air Conditioning</span>
+                            <span>Included</span>
+                        </div>
+                    )}
+
+                    <div className="flex justify-between font-bold text-lg pt-3 border-t mt-3 text-primary-700">
+                        <span>Total Amount</span>
+                        <span>{formatUSD(total)}</span>
+                    </div>
                 </div>
 
                 {submitError && (

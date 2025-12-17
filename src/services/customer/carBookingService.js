@@ -19,17 +19,19 @@ export const createCarBooking = async (data) => {
   }
 };
 
-export const fetchCarBookingsByAccount = async ({ page = 0, size = 10, accountID }) => {
+export const fetchCarBookingsByAccount = async ({ page = 0, size = 10, accountID, keyword, status }) => {
   try {
     const params = { page, size };
     if (accountID) params.accountID = accountID;
+    if (keyword) params.keyword = keyword;
+    if (status !== undefined && status !== null) params.status = status;
     const res = await api.get(CAR_BOOKING_BASE, { params });
     return res.data;
   } catch (error) {
     const msg =
       error.response?.data?.message ||
       error.response?.data?.error ||
-      "Không thể lấy danh sách đặt xe";
+      "Unable to load car bookings";
     throw new Error(msg);
   }
 };

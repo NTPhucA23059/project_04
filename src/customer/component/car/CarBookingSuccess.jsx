@@ -1,4 +1,5 @@
 import { useLocation, Link } from "react-router-dom";
+import { useEffect, useState } from "react";
 import {
     CheckCircleIcon,
     ExclamationTriangleIcon,
@@ -9,14 +10,44 @@ import {
     MapPinIcon,
     CalendarDaysIcon
 } from "@heroicons/react/24/solid";
+import { formatUSD } from "../../../utils/currency";
+import { fetchCarById } from "../../../services/customer/carService";
 
 export default function CarBookingSuccess() {
     const { state } = useLocation();
+    const [carData, setCarData] = useState(state?.car || null);
+    const [loadingCar, setLoadingCar] = useState(false);
 
     const booking = state?.payload;
-    const car = state?.car;
+    const car = carData;
 
-    if (!booking || !car) {
+    // Fetch car data if not available or incomplete
+    useEffect(() => {
+        const loadCar = async () => {
+            // If no car data or car data is missing key fields, fetch from API
+            const carId = booking?.carID || booking?.carId || booking?.CarID || state?.car?.CarID || state?.car?.carID;
+            
+            if (!carData || (!carData.ModelName && !carData.modelName && !carData.CarName)) {
+                if (carId) {
+                    setLoadingCar(true);
+                    try {
+                        const fetchedCar = await fetchCarById(carId);
+                        setCarData(fetchedCar);
+                    } catch (err) {
+                        console.error("Error fetching car:", err);
+                    } finally {
+                        setLoadingCar(false);
+                    }
+                }
+            }
+        };
+        
+        if (booking) {
+            loadCar();
+        }
+    }, [booking, carData, state?.car]);
+
+    if (!booking) {
         return (
             <div className="max-w-xl mx-auto text-center py-20">
                 <ExclamationTriangleIcon className="w-16 h-16 text-red-500 mx-auto" />
@@ -25,9 +56,59 @@ export default function CarBookingSuccess() {
         );
     }
 
+    // Show loading state while fetching car
+    if (loadingCar) {
+        return (
+            <div className="max-w-xl mx-auto text-center py-20">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Đang tải thông tin...</p>
+            </div>
+        );
+    }
+
+    const formatDate = (dateString) => {
+        if (!dateString) return "N/A";
+        try {
+            const date = new Date(dateString);
+            return date.toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+            });
+        } catch {
+            return dateString;
+        }
+    };
+
+    const formatDateTime = (dateString, timeString) => {
+        if (!dateString) return "N/A";
+        try {
+            const [hours, minutes] = timeString ? timeString.split(':') : ['00', '00'];
+            const date = new Date(dateString);
+            date.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+            return date.toLocaleString("en-US", {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
+                hour12: true,
+            });
+        } catch {
+            return `${dateString} ${timeString || ''}`;
+        }
+    };
+
     const created = new Date();
     const expire = new Date(created.getTime() + 24 * 60 * 60 * 1000);
-    const deadline = expire.toLocaleString("vi-VN");
+    const deadline = expire.toLocaleString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+    });
 
     const paymentMethodLabel = {
         OFFICE: "Thanh toán tại quầy",
@@ -41,30 +122,50 @@ export default function CarBookingSuccess() {
             {/* HEADER */}
             <div className="text-center">
                 <CheckCircleIcon className="w-20 h-20 text-green-500 mx-auto" />
-                <h1 className="text-3xl font-bold mt-3">Đặt Xe Thành Công!</h1>
-                <p className="text-gray-600 mt-1">
-                    Cảm ơn bạn đã tin tưởng sử dụng dịch vụ thuê xe của chúng tôi.
+                <h1 className="text-3xl font-bold mt-3">Booking Successful!</h1>
+                <p className="text-gray-600 mt-2">
+                    Thank you for choosing our car rental service.
                 </p>
+                {booking.bookingCode && (
+                    <div className="mt-4 inline-block bg-primary-50 border-2 border-primary-600 rounded-lg px-6 py-3">
+                        <p className="text-sm text-neutral-600 font-medium">Booking Code</p>
+                        <p className="text-2xl font-bold text-primary-700 mt-1">{booking.bookingCode}</p>
+                    </div>
+                )}
             </div>
 
             {/* CAR INFO */}
-            <div className="mt-8 border rounded-xl p-6 bg-neutral-50">
-                <h2 className="text-xl font-bold mb-4">Thông Tin Xe</h2>
+            {car && (
+                <div className="mt-8 border rounded-xl p-6 bg-neutral-50">
+                    <h2 className="text-xl font-bold mb-4">Thông Tin Xe</h2>
 
-                <div className="flex gap-4">
-                    <img
-                        src={car.ImageUrl}
-                        className="w-32 h-24 rounded-xl object-cover"
-                    />
+                    <div className="flex gap-4">
+                        <img
+                            src={(() => {
+                                const imgUrl = car.image || car.ImageUrl || car.imageUrl || car.Image || car.MainImage ||
+                                              (car.images && car.images.length > 0 ? (car.images[0].imageUrl || car.images[0].ImageUrl) : null);
+                                if (!imgUrl) return "https://placehold.co/200x150?text=Car";
+                                if (/^https?:\/\//.test(imgUrl)) return imgUrl;
+                                const base = "http://localhost:8081"; // Default API base
+                                return imgUrl.startsWith('/') ? `${base}${imgUrl}` : `${base}/${imgUrl.replace(/^\/+/, "")}`;
+                            })()}
+                            alt={car.ModelName || car.modelName || "Car"}
+                            className="w-32 h-24 rounded-xl object-cover bg-neutral-100"
+                            onError={(e) => {
+                                e.target.src = "https://placehold.co/200x150?text=Car";
+                                e.target.onerror = null;
+                            }}
+                        />
 
-                    <div className="text-sm space-y-1">
-                        <p><strong>Xe:</strong> {car.ModelName}</p>
-                        <p><strong>Hãng:</strong> {car.Brand}</p>
-                        <p><strong>Biển số:</strong> {car.PlateNumber}</p>
-                        <p><strong>Giá:</strong> ${car.DailyRate}/ngày</p>
+                        <div className="text-sm space-y-1">
+                            <p><strong>Xe:</strong> {car.ModelName || car.modelName || car.CarName || car.carName || "N/A"}</p>
+                            <p><strong>Hãng:</strong> {car.Brand || car.brand || "N/A"}</p>
+                            <p><strong>Biển số:</strong> {car.PlateNumber || car.plateNumber || "N/A"}</p>
+                            <p><strong>Giá:</strong> {formatUSD(car.DailyRate || car.dailyRate || car.DailyRate || 0)}/ngày</p>
+                        </div>
                     </div>
                 </div>
-            </div>
+            )}
 
             {/* BOOKING DETAILS */}
             <div className="mt-8 border rounded-xl p-6 bg-white">
@@ -73,12 +174,22 @@ export default function CarBookingSuccess() {
                 <div className="grid md:grid-cols-2 gap-4 text-sm">
                     <p className="flex items-center gap-2">
                         <CalendarDaysIcon className="w-5 h-5 text-primary-600" />
-                        <strong>Ngày nhận xe:</strong> {booking.pickupDate} - {booking.pickupTime}
+                        <div>
+                            <strong>Pickup Date & Time:</strong>
+                            <div className="text-neutral-700 mt-1">
+                                {formatDateTime(booking.pickupDate, booking.pickupTime)}
+                            </div>
+                        </div>
                     </p>
 
                     <p className="flex items-center gap-2">
                         <CalendarDaysIcon className="w-5 h-5 text-primary-600" />
-                        <strong>Ngày trả xe:</strong> {booking.dropoffDate} - {booking.dropoffTime}
+                        <div>
+                            <strong>Dropoff Date & Time:</strong>
+                            <div className="text-neutral-700 mt-1">
+                                {formatDateTime(booking.dropoffDate, booking.dropoffTime)}
+                            </div>
+                        </div>
                     </p>
 
                     <p className="flex items-center gap-2">
@@ -132,9 +243,9 @@ export default function CarBookingSuccess() {
                     </p>
 
                     <p>
-                        <strong>Tổng tiền:</strong>{" "}
+                        <strong>Total Amount:</strong>{" "}
                         <span className="text-primary-700 text-lg font-bold">
-                            ${booking.TotalAmount.toLocaleString()}
+                            {formatUSD(booking.TotalAmount || 0)}
                         </span>
                     </p>
                 </div>
@@ -143,13 +254,16 @@ export default function CarBookingSuccess() {
                     <div className="mt-5 p-4 bg-yellow-50 border border-yellow-300 rounded-lg">
                         <h3 className="text-yellow-700 font-semibold flex items-center gap-2">
                             <ClockIcon className="w-6 h-6" />
-                            Thanh Toán Tại Quầy
+                            Pay at Office
                         </h3>
                         <p className="text-sm mt-1 text-neutral-700">
-                            Bạn cần đến trụ sở để thanh toán trong vòng <strong>24 giờ</strong>.
+                            Please visit our office to complete payment within <strong>24 hours</strong>.
                         </p>
-                        <p className="text-sm font-bold mt-1">
-                            Hạn thanh toán: <span className="text-primary-700">{deadline}</span>
+                        <p className="text-sm font-bold mt-2">
+                            Payment Deadline: <span className="text-primary-700">{deadline}</span>
+                        </p>
+                        <p className="text-xs text-neutral-600 mt-2">
+                            ⚠ Your booking will be automatically cancelled if payment is not received by the deadline.
                         </p>
                     </div>
                 )}

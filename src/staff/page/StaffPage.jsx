@@ -17,6 +17,9 @@ import HotelManagement from "../component/hotels/HotelManagement";
 import HotelAmenityManagement from "../component/hotels/HotelAmenityManagement";
 import NearbyAttractionManagement from "../component/hotels/NearbyAttractionManagement";
 import FlightManagement from "../component/flight/FlightManagement";
+import PackageSalesAnalysis from "../component/salesAnalysis/PackageSalesAnalysis";
+import StaffCarBookingManagement from "../component/car/StaffCarBookingManagement";
+
 
 
 export default function StaffPage() {
@@ -58,6 +61,10 @@ export default function StaffPage() {
                 return <NearbyAttractionManagement />;
             case "profile":
                 return <StaffProfile />;
+            case "salesTours":
+                return <PackageSalesAnalysis />;
+            case "carBookings":
+                return <StaffCarBookingManagement  />;
             default:
                 return <Dashboard />;
         }

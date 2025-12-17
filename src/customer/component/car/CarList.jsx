@@ -1,43 +1,49 @@
-"use client";
-
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   Menu,
   MenuButton,
   MenuItem,
   MenuItems,
 } from "@headlessui/react";
-import { ChevronDownIcon } from "@heroicons/react/24/outline";
+import { ChevronDownIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 
-import { mockCarTypes } from "../data/mockData";
 import { fetchCars } from "../../../services/customer/carService";
 import api from "../../../services/api";
 import CarCard from "./CarCard";
 
 const ITEMS_PER_PAGE = 6;
 
-// ===== util: convert relative -> absolute =====
-const toAbsoluteUrl = (url) => {
-  if (!url) return "";
-  if (/^https?:\/\//.test(url)) return url;
-  const base = (api.defaults.baseURL || "").replace(/\/$/, "");
-  return `${base}/${url.replace(/^\/+/, "")}`;
-};
-
 export default function CarListPage() {
   const [selectedType, setSelectedType] = useState(null);
   const [selectedBrand, setSelectedBrand] = useState(null);
   const [selectedSeats, setSelectedSeats] = useState(null);
   const [sort, setSort] = useState("default");
+  const [searchKeyword, setSearchKeyword] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(1); // UI is 1-based
 
   const [cars, setCars] = useState([]);
+  const [allCars, setAllCars] = useState([]); // Store all cars for client-side filtering
+  const [carTypes, setCarTypes] = useState([]);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const brands = [...new Set(cars.map(c => c.Brand || c.brand).filter(Boolean))];
-  const seats = [...new Set(cars.map(c => c.SeatingCapacity ?? c.seatingCapacity).filter(Boolean))];
+  // Extract brands and seats from all available cars
+  const { brands, seats } = useMemo(() => {
+    const allBrands = [...new Set(allCars.map(c => c.Brand || c.brand).filter(Boolean))].sort();
+    const allSeats = [...new Set(allCars.map(c => c.SeatingCapacity ?? c.seatingCapacity).filter(Boolean))].sort((a, b) => a - b);
+    return { brands: allBrands, seats: allSeats };
+  }, [allCars]);
+
+  // Debounce search keyword
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchKeyword.trim());
+      setPage(1); // Reset to first page when search changes
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchKeyword]);
 
   // ===== fetch cars =====
   useEffect(() => {
@@ -46,53 +52,66 @@ export default function CarListPage() {
         setLoading(true);
         setError("");
 
-        const res = await fetchCars({
+        const params = {
           page: page - 1,
           size: ITEMS_PER_PAGE,
-          keyword: selectedBrand || undefined,
-          carTypeID: selectedType || undefined,
-        });
+        };
 
-        const normalizedCars = (res.items || []).map(car => ({
-          ...car,
-          // Normalize main image
-          image: toAbsoluteUrl(car.image || car.Image || car.imageUrl || car.ImageUrl || car.MainImage),
-          imageUrl: toAbsoluteUrl(car.image || car.Image || car.imageUrl || car.ImageUrl || car.MainImage),
-          // Normalize images array if exists
-          images: (car.images || []).map(img => ({
-            ...img,
-            imageUrl: toAbsoluteUrl(img.imageUrl || img.ImageUrl),
-          })),
-        }));
+        // Use debounced search for keyword
+        if (debouncedSearch) params.keyword = debouncedSearch;
+        // Use selectedType for carTypeID (server-side filter)
+        if (selectedType) params.carTypeID = selectedType;
+        // Note: We don't send brand to server, we filter client-side for flexibility
 
-        setCars(normalizedCars);
+        const res = await fetchCars(params);
+
+        // Fetch more cars for client-side filtering of brands/seats
+        // Only fetch all cars on first page and when no search is active
+        if (page === 1 && !debouncedSearch) {
+          try {
+            const allRes = await fetchCars({ page: 0, size: 200, carTypeID: selectedType || undefined });
+            setAllCars(allRes.items || []);
+          } catch (err) {
+            // Ignore error
+          }
+        } else if (debouncedSearch) {
+          // When searching, update allCars from search results
+          setAllCars(res.items || []);
+        }
+
+        setCars(res.items || []);
         setTotalPages(res.totalPages || 1);
       } catch (err) {
-        setError(err?.message || "Không thể tải danh sách xe");
+        setError(err?.message || "Unable to load car list");
+        console.error("Error loading cars:", err);
       } finally {
         setLoading(false);
       }
     };
 
     load();
-  }, [page, selectedType, selectedBrand]);
+  }, [page, selectedType, debouncedSearch]);
 
   // ===== client-side filter =====
-  const filteredCars = cars.filter(c => {
-    const seat = c.SeatingCapacity ?? c.seatingCapacity;
-    const brand = c.Brand || c.brand;
-    return (!selectedSeats || seat === selectedSeats)
-        && (!selectedBrand || brand === selectedBrand);
-  });
+  const filteredCars = useMemo(() => {
+    return cars.filter(c => {
+      const seat = c.SeatingCapacity ?? c.seatingCapacity;
+      const brand = c.Brand || c.brand;
+      return (!selectedSeats || seat === selectedSeats)
+          && (!selectedBrand || brand === selectedBrand);
+    });
+  }, [cars, selectedSeats, selectedBrand]);
 
   // ===== client-side sort =====
-  const sortedCars = [...filteredCars].sort((a, b) => {
-    const priceA = Number(a.DailyRate ?? a.dailyRate ?? 0);
-    const priceB = Number(b.DailyRate ?? b.dailyRate ?? 0);
-    if (sort === "price_asc") return priceA - priceB;
-    if (sort === "price_desc") return priceB - priceA;
-    return 0;
-  });
+  const sortedCars = useMemo(() => {
+    return [...filteredCars].sort((a, b) => {
+      const priceA = Number(a.DailyRate ?? a.dailyRate ?? 0);
+      const priceB = Number(b.DailyRate ?? b.dailyRate ?? 0);
+      if (sort === "price_asc") return priceA - priceB;
+      if (sort === "price_desc") return priceB - priceA;
+      return 0;
+    });
+  }, [filteredCars, sort]);
 
   const goToPage = (p) => {
     if (p >= 1 && p <= totalPages) {
@@ -112,8 +131,22 @@ export default function CarListPage() {
         </p>
       </div>
 
+      {/* SEARCH BAR */}
+      <div className="max-w-7xl mx-auto px-6 mb-6">
+        <div className="relative">
+          <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-neutral-400" />
+          <input
+            type="text"
+            placeholder="Search by car name..."
+            value={searchKeyword}
+            onChange={(e) => setSearchKeyword(e.target.value)}
+            className="w-full pl-10 pr-4 py-3 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+          />
+        </div>
+      </div>
+
       {/* FILTER BAR */}
-      <div className="max-w-7xl mx-auto px-6 flex items-center justify-end gap-6 border-b pb-6">
+      <div className="max-w-7xl mx-auto px-6 flex flex-wrap items-center justify-end gap-4 border-b pb-6">
         <FilterDropdown
           label="Sort"
           options={[
@@ -128,10 +161,13 @@ export default function CarListPage() {
         <FilterDropdown
           label="Category"
           badge={selectedType ? 1 : 0}
-          options={mockCarTypes.map(t => ({
-            label: t.TypeName,
-            value: t.CarTypeID,
-          }))}
+          options={[
+            { label: "All Categories", value: null },
+            ...carTypes.map(t => ({
+              label: t.typeName || t.TypeName || "Unknown",
+              value: t.carTypeID || t.CarTypeID,
+            }))
+          ]}
           selected={selectedType}
           onChange={(v) => { setSelectedType(v === selectedType ? null : v); setPage(1); }}
         />
@@ -139,7 +175,10 @@ export default function CarListPage() {
         <FilterDropdown
           label="Brand"
           badge={selectedBrand ? 1 : 0}
-          options={brands.map(b => ({ label: b, value: b }))}
+          options={[
+            { label: "All Brands", value: null },
+            ...brands.map(b => ({ label: b, value: b }))
+          ]}
           selected={selectedBrand}
           onChange={(v) => { setSelectedBrand(v === selectedBrand ? null : v); setPage(1); }}
         />
@@ -147,16 +186,49 @@ export default function CarListPage() {
         <FilterDropdown
           label="Seats"
           badge={selectedSeats ? 1 : 0}
-          options={seats.map(s => ({ label: `${s} seats`, value: s }))}
+          options={[
+            { label: "All Seats", value: null },
+            ...seats.map(s => ({ label: `${s} seats`, value: s }))
+          ]}
           selected={selectedSeats}
           onChange={(v) => { setSelectedSeats(v === selectedSeats ? null : v); setPage(1); }}
         />
+        
+        {/* Clear all filters button */}
+        {(selectedType || selectedBrand || selectedSeats) && (
+          <button
+            onClick={() => {
+              setSelectedType(null);
+              setSelectedBrand(null);
+              setSelectedSeats(null);
+              setPage(1);
+            }}
+            className="px-4 py-2 text-sm text-neutral-600 hover:text-neutral-900 border border-neutral-300 rounded-lg hover:bg-neutral-50"
+          >
+            Clear Filters
+          </button>
+        )}
       </div>
 
       {/* STATUS */}
       <div className="max-w-7xl mx-auto px-6 mt-6">
-        {error && <div className="text-red-600 py-3">{error}</div>}
-        {loading && !error && <div className="text-neutral-600 py-3">Đang tải xe...</div>}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-600 py-3 px-4 rounded-lg">
+            {error}
+          </div>
+        )}
+        {loading && !error && (
+          <div className="text-neutral-600 py-3 flex items-center gap-2">
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600"></div>
+            Loading cars...
+          </div>
+        )}
+        {!loading && !error && sortedCars.length > 0 && (
+          <div className="text-neutral-600 text-sm">
+            Showing {sortedCars.length} car{sortedCars.length !== 1 ? 's' : ''}
+            {(selectedType || selectedBrand || selectedSeats || debouncedSearch) && ' (filtered)'}
+          </div>
+        )}
       </div>
 
       {/* GRID */}
@@ -216,9 +288,11 @@ export default function CarListPage() {
    FILTER DROPDOWN
 ================================ */
 function FilterDropdown({ label, options, selected, onChange, badge }) {
+  const isSelected = selected !== null && selected !== undefined;
+  
   return (
     <Menu as="div" className="relative inline-block text-left">
-      <MenuButton className="flex items-center gap-1 text-neutral-700 hover:text-black">
+      <MenuButton className="flex items-center gap-1 text-neutral-700 hover:text-black px-3 py-2 border border-neutral-300 rounded-lg hover:bg-neutral-50 transition">
         {label}
         {badge > 0 && (
           <span className="px-2 py-0.5 text-xs bg-primary-600 text-white rounded-full">
@@ -228,18 +302,28 @@ function FilterDropdown({ label, options, selected, onChange, badge }) {
         <ChevronDownIcon className="h-4 w-4 text-neutral-500" />
       </MenuButton>
 
-      <MenuItems className="absolute right-0 mt-3 w-48 bg-white shadow-xl rounded-xl p-3 z-20">
-        {options.map(opt => (
-          <MenuItem key={opt.value}>
-            <button
-              onClick={() => onChange(opt.value)}
-              className="flex items-center gap-2 w-full px-2 py-2 text-sm rounded-lg hover:bg-neutral-100"
-            >
-              <input type="checkbox" readOnly checked={selected === opt.value} />
-              {opt.label}
-            </button>
-          </MenuItem>
-        ))}
+      <MenuItems className="absolute right-0 mt-2 w-56 bg-white shadow-xl rounded-xl p-2 z-20 max-h-64 overflow-y-auto">
+        {options.map(opt => {
+          const isChecked = selected === opt.value || (opt.value === null && !isSelected);
+          return (
+            <MenuItem key={opt.value ?? 'all'}>
+              <button
+                onClick={() => onChange(opt.value === null ? null : (opt.value === selected ? null : opt.value))}
+                className={`flex items-center gap-2 w-full px-3 py-2 text-sm rounded-lg hover:bg-neutral-100 transition ${
+                  isChecked ? 'bg-primary-50 text-primary-700 font-medium' : ''
+                }`}
+              >
+                <input 
+                  type="checkbox" 
+                  readOnly 
+                  checked={isChecked}
+                  className="cursor-pointer"
+                />
+                <span>{opt.label}</span>
+              </button>
+            </MenuItem>
+          );
+        })}
       </MenuItems>
     </Menu>
   );

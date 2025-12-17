@@ -16,6 +16,7 @@ import * as bookingService from "../../../services/staff/bookingStaffService";
 import { toast } from "../../shared/toast/toast";
 import { useConfirm } from "../../shared/confirm/useConfirm";
 import ConfirmDialog from "../../shared/confirm/ConfirmDialog";
+import { getCurrentUser } from "../../../services/common/authService";
 
 // Order Status mapping
 const getOrderStatusText = (status) => {
@@ -141,7 +142,7 @@ export default function BookingManagement() {
         const confirmed = await confirm({
             title: isPaid ? "Confirm Payment Received" : "Mark as Pending",
             message: isPaid 
-                ? "Are you sure the customer has paid at the office? This will update the payment status to 'Paid' and the order status to 'Confirmed'."
+                ? "Are you sure the customer has paid at the office? This will update the payment status to 'Paid' and the order status to 'Confirmed', and create an invoice."
                 : "Are you sure you want to mark this booking as 'Pending'?",
             confirmText: isPaid ? "Yes, Mark as Paid" : "Yes, Mark as Pending",
             cancelText: "Cancel",
@@ -152,11 +153,15 @@ export default function BookingManagement() {
             return;
         }
 
+        // Get current staff accountID for processedBy
+        const currentUser = getCurrentUser();
+        const processedBy = currentUser?.accountID || currentUser?.AccountID || null;
+
         setUpdatingPayment(bookingID);
         try {
-            await bookingService.updatePaymentStatus(bookingID, paymentStatus);
+            await bookingService.updatePaymentStatus(bookingID, paymentStatus, processedBy);
             toast.success(isPaid 
-                ? "Payment status updated successfully. Booking is now confirmed." 
+                ? "Payment status updated successfully. Booking is now confirmed and invoice has been created." 
                 : "Payment status updated to Pending.");
             fetchBookings(); // Refresh list
         } catch (error) {

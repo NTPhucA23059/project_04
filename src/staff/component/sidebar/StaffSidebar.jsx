@@ -17,8 +17,7 @@ import {
   StarIcon,
   PaperAirplaneIcon,
 } from "@heroicons/react/24/outline";
-import { TypeIcon } from "lucide-react";
-import logo from "../../../assets/img/logo.png";
+import { ChartBar, ChartBarIcon, TypeIcon } from "lucide-react";
 
 export default function StaffSidebar({ isOpen, activeTab, setActiveTab }) {
   // State để quản lý các nhóm mở/đóng
@@ -44,6 +43,8 @@ export default function StaffSidebar({ isOpen, activeTab, setActiveTab }) {
       collapsible: false,
       items: [
         { id: "dashboard", name: "Dashboard", icon: HomeIcon },
+        { id: "salesTours", name: "Sales Analysis", icon: ChartBarIcon }
+
       ],
     },
     {
@@ -68,6 +69,8 @@ export default function StaffSidebar({ isOpen, activeTab, setActiveTab }) {
       items: [
         { id: "carTypes", name: "Car Types", icon: TypeIcon },
         { id: "cars", name: "Cars", icon: TruckIcon },
+        { id: "carBookings", name: "Car Bookings", icon: ClipboardDocumentCheckIcon },
+
       ],
     },
     {
@@ -133,8 +136,8 @@ export default function StaffSidebar({ isOpen, activeTab, setActiveTab }) {
                 <button
                   onClick={() => toggleGroup(group.key)}
                   className={`w-full flex items-center justify-between px-3 py-2.5 mb-2 rounded-lg transition-all duration-200 ${hasActiveItem
-                      ? "bg-primary-50 text-primary-700 border border-primary-200 shadow-sm"
-                      : "text-neutral-600 hover:text-primary-700 hover:bg-primary-50/50"
+                    ? "bg-primary-50 text-primary-700 border border-primary-200 shadow-sm"
+                    : "text-neutral-600 hover:text-primary-700 hover:bg-primary-50/50"
                     }`}
                 >
                   <h3 className="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
@@ -169,8 +172,8 @@ export default function StaffSidebar({ isOpen, activeTab, setActiveTab }) {
                         >
                           <item.icon
                             className={`w-5 h-5 mr-3 transition-transform ${isActive
-                                ? "text-white"
-                                : "text-neutral-500 group-hover:text-primary-600"
+                              ? "text-white"
+                              : "text-neutral-500 group-hover:text-primary-600"
                               } ${isActive ? "scale-110" : ""}`}
                           />
                           <span className="flex-1 text-left">{item.name}</span>

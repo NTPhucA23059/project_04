@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ChevronDownIcon, ChevronUpIcon } from "@heroicons/react/24/solid";
 import { useNavigate } from "react-router-dom";
 import { refundRules } from "../../component/data/mockData";
+import { formatUSD } from "../../../utils/currency";
 
 export default function CarPricing({ car }) {
     const [open, setOpen] = useState(false);
@@ -20,7 +21,7 @@ export default function CarPricing({ car }) {
 
             {/* PRICE */}
             <p className="text-3xl font-bold text-orange-600 mb-4">
-                ${dailyRate}
+                {formatUSD(dailyRate)}
                 <span className="text-gray-600 text-lg font-medium"> /day</span>
             </p>
 
@@ -49,8 +50,8 @@ export default function CarPricing({ car }) {
                         <div>
                             <p className="font-semibold mb-1">Extra Fees</p>
                             <ul className="ml-4 space-y-1 text-blue-700">
-                                {car.ExtraHourRate && <li>• Extra hour: ${car.ExtraHourRate}</li>}
-                                {car.ExtraKmRate && <li>• Extra km: ${car.ExtraKmRate}</li>}
+                                {car.ExtraHourRate && <li>• Extra hour: {formatUSD(car.ExtraHourRate)}</li>}
+                                {car.ExtraKmRate && <li>• Extra km: {formatUSD(car.ExtraKmRate)}</li>}
                                 {car.KmLimitPerDay && <li>• Km limit/day: {car.KmLimitPerDay} km</li>}
                             </ul>
                         </div>
@@ -61,8 +62,8 @@ export default function CarPricing({ car }) {
                         <div>
                             <p className="font-semibold mb-1">Special Rates</p>
                             <ul className="ml-4 space-y-1">
-                                {car.WeekendRate && <li>• Weekend: ${car.WeekendRate}</li>}
-                                {car.HolidayRate && <li>• Holiday: ${car.HolidayRate}</li>}
+                                {car.WeekendRate && <li>• Weekend: {formatUSD(car.WeekendRate)}</li>}
+                                {car.HolidayRate && <li>• Holiday: {formatUSD(car.HolidayRate)}</li>}
                             </ul>
                         </div>
                     )}
