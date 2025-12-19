@@ -4,6 +4,8 @@ import Dashboard from "../component/dashboard/Dashboard";
 import ManageSystemUsers from "../component/managesystemusers/ManageSystemUsers";
 import ManageUserAuthorization from "../component/manageuserauthorization/ManageUserAuthorization";
 import ManageAdminProfile from "../component/manageadminprofile/ManageAdminProfile";
+import PackageSalesAnalysis from "../component/salesAnalysis/PackageSalesAnalysis";
+import CarRentalSalesAnalysis from "../component/salesAnalysis/CarRentalSalesAnalysis";
 
 
 export default function AdminPage() {
@@ -19,6 +21,10 @@ export default function AdminPage() {
         return <ManageUserAuthorization />;
       case "admin-profile":
         return <ManageAdminProfile />;
+      case "salesTours":
+        return <PackageSalesAnalysis />;
+      case "salesCars":
+        return <CarRentalSalesAnalysis />;
       default:
         return <Dashboard />;
     }

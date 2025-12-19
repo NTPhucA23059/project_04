@@ -24,7 +24,6 @@ import {
 export default function StaffSidebar({ isOpen, activeTab, setActiveTab }) {
   // State để quản lý các nhóm mở/đóng
   const [openGroups, setOpenGroups] = useState({
-    overview: false,
     tour: false,
     vehicle: false,
     hotel: false,
@@ -40,16 +39,6 @@ export default function StaffSidebar({ isOpen, activeTab, setActiveTab }) {
   };
 
   const navGroups = [
-    {
-      key: "overview",
-      title: "Dashboard",
-      collapsible: true,
-      items: [
-        { id: "dashboard", name: "Overview", icon: PresentationChartLineIcon },
-        { id: "salesTours", name: "Tour Sales Analysis", icon: PresentationChartBarIcon },
-        { id: "salesCars", name: "Car Rental Sales Analysis", icon: ChartPieIcon }
-      ],
-    },
     {
       key: "tour",
       title: "Tour Management",
@@ -128,6 +117,29 @@ export default function StaffSidebar({ isOpen, activeTab, setActiveTab }) {
 
       {/* Navigation */}
       <nav className="px-4 py-6 space-y-5 bg-white">
+        {/* Dashboard - Standalone Item */}
+        <div>
+          <button
+            onClick={() => setActiveTab("dashboard")}
+            className={`w-full flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 mb-4
+              ${activeTab === "dashboard"
+                ? "bg-gradient-to-r from-primary-600 to-primary-500 text-white shadow-md shadow-primary-500/40"
+                : "text-neutral-700 hover:bg-primary-50 hover:text-primary-700"
+              }`}
+          >
+            <PresentationChartLineIcon
+              className={`w-5 h-5 mr-3 transition-transform ${activeTab === "dashboard"
+                ? "text-white"
+                : "text-neutral-500"
+                } ${activeTab === "dashboard" ? "scale-110" : ""}`}
+            />
+            <span className="flex-1 text-left">Dashboard</span>
+            {activeTab === "dashboard" && (
+              <div className="w-1.5 h-1.5 rounded-full bg-white ml-auto"></div>
+            )}
+          </button>
+        </div>
+
         {navGroups.map((group) => {
           const isGroupOpen = !group.collapsible || openGroups[group.key];
           const hasActiveItem = group.items.some((item) => activeTab === item.id);

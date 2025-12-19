@@ -6,6 +6,7 @@ export default function CategoryFormModal({
   onSubmit,
   initial,
   list = [],
+  tourCount = null, // Optional: number of tours using this category
 }) {
   const [form, setForm] = useState({
     CategoryCode: "",
@@ -98,20 +99,53 @@ export default function CategoryFormModal({
           {initial ? "Edit Category" : "Add New Category"}
         </h2>
 
+        {/* Info banner if category is being used */}
+        {initial && tourCount !== null && tourCount > 0 && (
+          <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <div className="flex items-start gap-2">
+              <svg className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-blue-900">
+                  This category is currently used by {tourCount} tour(s)
+                </p>
+                <p className="text-xs text-blue-700 mt-1">
+                  You can still edit the name, description, and status. Changes will apply to all tours using this category.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Category Code */}
         <div className="mb-3">
-          <label className="text-sm font-medium">Category Code</label>
+          <label className="text-sm font-medium">
+            Category Code
+            {initial && (
+              <span className="text-xs text-gray-500 ml-2">(Cannot be changed)</span>
+            )}
+          </label>
           <input
             className={`w-full border rounded-lg px-3 py-2 mt-1.5 text-sm focus:ring-2 focus:ring-primary-200 focus:border-primary-500 outline-none transition ${
               errors.CategoryCode ? "border-red-500" : "border-neutral-200"
-            }`}
+            } ${initial ? "bg-gray-50 cursor-not-allowed" : ""}`}
             value={form.CategoryCode}
-            onChange={(e) =>
-              setForm({ ...form, CategoryCode: e.target.value.toUpperCase() })
-            }
+            onChange={(e) => {
+              if (!initial) {
+                setForm({ ...form, CategoryCode: e.target.value.toUpperCase() });
+              }
+            }}
+            disabled={!!initial}
+            readOnly={!!initial}
           />
           {errors.CategoryCode && (
             <p className="text-red-600 text-xs">{errors.CategoryCode}</p>
+          )}
+          {initial && (
+            <p className="text-xs text-gray-500 mt-1">
+              Category code cannot be changed once created.
+            </p>
           )}
         </div>
 
@@ -159,6 +193,11 @@ export default function CategoryFormModal({
             <option value={1}>Active</option>
             <option value={0}>Inactive</option>
           </select>
+          {initial && tourCount !== null && tourCount > 0 && form.Status === 0 && (
+            <p className="text-xs text-amber-600 mt-1">
+              ⚠️ Setting this to inactive will affect {tourCount} tour(s) using this category.
+            </p>
+          )}
         </div>
 
 

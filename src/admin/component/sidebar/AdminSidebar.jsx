@@ -8,6 +8,8 @@ import {
   MapPinIcon,
   ClockIcon,
   TruckIcon,
+  PresentationChartBarIcon,
+  ChartPieIcon,
 } from "@heroicons/react/24/outline";
 import logo from "../../../assets/img/logo.png";
 export default function AdminSidebar({ isOpen, activeTab, setActiveTab }) {
@@ -19,7 +21,8 @@ export default function AdminSidebar({ isOpen, activeTab, setActiveTab }) {
       name: "User Authorization",
       icon: ShieldCheckIcon,
     },
- 
+    { id: "salesTours", name: "Tour Sales Analysis", icon: PresentationChartBarIcon },
+    { id: "salesCars", name: "Car Rental Sales Analysis", icon: ChartPieIcon },
     { id: "admin-profile", name: "Profile", icon: UserCircleIcon },
   ];
 

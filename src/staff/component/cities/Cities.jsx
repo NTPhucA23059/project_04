@@ -7,7 +7,6 @@ import {
   deleteCity,
 } from "../../../services/staff/cityStaffService";
 import { toast } from "../../shared/toast/toast";
-import ConfirmDialog from "../../shared/confirm/ConfirmDialog";
 
 export default function Cities() {
   const [cities, setCities] = useState([]);
@@ -18,13 +17,7 @@ export default function Cities() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Confirmation dialog
-  const [confirmDialog, setConfirmDialog] = useState({
-    isOpen: false,
-    title: "",
-    message: "",
-    onConfirm: null,
-  });
+  const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, city: null, error: null, deleting: false });
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -105,21 +98,71 @@ export default function Cities() {
     setModalOpen(true);
   };
 
-  const handleDelete = async (id) => {
-    setConfirmDialog({
-      isOpen: true,
-      title: "Delete City",
-      message: "Are you sure you want to delete this city? This action cannot be undone.",
-      onConfirm: async () => {
-        try {
-          await deleteCity(id);
-          toast.success("City deleted successfully");
-          loadData();
-        } catch (err) {
-          toast.error(err?.response?.data?.error || err.message || "Delete failed");
+  const handleDelete = (city) => {
+    setDeleteConfirm({ isOpen: true, city: city, error: null, deleting: false });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm.city || deleteConfirm.deleting) return;
+
+    try {
+      setDeleteConfirm(prev => ({ ...prev, deleting: true, error: null }));
+      await deleteCity(deleteConfirm.city.CityID);
+      toast.success("City deleted successfully");
+      setDeleteConfirm({ isOpen: false, city: null, error: null, deleting: false });
+      loadData();
+    } catch (err) {
+      // Get error message from response
+      let backendMsg = "";
+      
+      if (err?.response?.data?.message) {
+        backendMsg = err.response.data.message;
+      } else if (err?.response?.data?.error) {
+        backendMsg = err.response.data.error;
+      } else if (err?.message) {
+        backendMsg = err.message;
+      }
+
+      // Convert technical message to user-friendly message
+      let userFriendlyMsg = "";
+      
+      // Check if it's a constraint error (city is being used)
+      if (backendMsg.toLowerCase().includes("hotel") || 
+          backendMsg.toLowerCase().includes("attraction") ||
+          backendMsg.toLowerCase().includes("flight") ||
+          backendMsg.toLowerCase().includes("tour") ||
+          backendMsg.toLowerCase().includes("using") ||
+          backendMsg.toLowerCase().includes("cannot delete")) {
+        
+        // Extract counts if available
+        const counts = backendMsg.match(/(\d+)\s+(\w+)/g);
+        if (counts && counts.length > 0) {
+          const items = counts.map(c => {
+            const match = c.match(/(\d+)\s+(\w+)/);
+            if (match) {
+              const count = match[1];
+              const type = match[2];
+              return `${count} ${type}${parseInt(count) > 1 ? 's' : ''}`;
+            }
+            return c;
+          }).join(", ");
+          
+          userFriendlyMsg = `This city is currently being used by ${items}. You cannot delete it until you remove or change the city for those records first.`;
+        } else {
+          userFriendlyMsg = "This city is currently being used by other records. You cannot delete it until you remove or change the city for those records first.";
         }
-      },
-    });
+      } else if (backendMsg.toLowerCase().includes("not found")) {
+        userFriendlyMsg = "This city no longer exists. Please refresh the page.";
+      } else if (backendMsg) {
+        userFriendlyMsg = "Unable to delete this city. Please try again later or contact support if the problem persists.";
+      } else {
+        userFriendlyMsg = "Unable to delete this city. Please check your connection and try again.";
+      }
+
+      // Show error in dialog and toast
+      setDeleteConfirm(prev => ({ ...prev, error: userFriendlyMsg, deleting: false }));
+      toast.error(userFriendlyMsg);
+    }
   };
 
   const handleSave = async (data) => {
@@ -152,8 +195,30 @@ export default function Cities() {
       loadData();
     } catch (err) {
       console.error(err);
-      const errorMsg = err?.response?.data?.error || err?.response?.data?.message || err.message || "Save failed";
-      toast.error(errorMsg);
+      
+      // Get backend message
+      let backendMsg = err?.response?.data?.message || err?.response?.data?.error || err?.message || "";
+      
+      // Convert to user-friendly message
+      let userFriendlyMsg = "";
+      
+      if (backendMsg.toLowerCase().includes("already exists") || backendMsg.toLowerCase().includes("duplicate")) {
+        if (backendMsg.toLowerCase().includes("code")) {
+          userFriendlyMsg = "This city code is already in use. Please choose a different code.";
+        } else {
+          userFriendlyMsg = "This city already exists. Please check the code and name.";
+        }
+      } else if (backendMsg.toLowerCase().includes("not found")) {
+        userFriendlyMsg = "City not found. Please refresh the page and try again.";
+      } else if (backendMsg.toLowerCase().includes("validation") || backendMsg.toLowerCase().includes("required")) {
+        userFriendlyMsg = "Please fill in all required fields correctly.";
+      } else if (backendMsg) {
+        userFriendlyMsg = "Unable to save city. Please check your input and try again.";
+      } else {
+        userFriendlyMsg = "Unable to save city. Please check your connection and try again.";
+      }
+
+      toast.error(userFriendlyMsg);
     } finally {
       setLoading(false);
     }
@@ -357,7 +422,7 @@ export default function Cities() {
                   </button>
 
                   <button
-                    onClick={() => handleDelete(city.CityID)}
+                    onClick={() => handleDelete(city)}
                     className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 shadow-sm transition"
                   >
                     Delete
@@ -458,20 +523,84 @@ export default function Cities() {
         list={cities}
       />
 
-      {/* Confirmation Dialog */}
-      <ConfirmDialog
-        isOpen={confirmDialog.isOpen}
-        onClose={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
-        onConfirm={() => {
-          if (confirmDialog.onConfirm) {
-            confirmDialog.onConfirm();
-          }
-          setConfirmDialog({ ...confirmDialog, isOpen: false });
-        }}
-        title={confirmDialog.title}
-        message={confirmDialog.message}
-        type="danger"
-      />
+      {/* Delete Confirmation Dialog */}
+      {deleteConfirm.isOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full transform transition-all border border-gray-200/50">
+            <div className="p-6">
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0 bg-red-100 rounded-full p-3">
+                  <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    Delete City
+                  </h3>
+                  {deleteConfirm.error ? (
+                    <div className="space-y-3">
+                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                        <div className="flex items-start gap-3">
+                          <div className="flex-shrink-0">
+                            <svg className="h-6 w-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold text-amber-900 mb-2">
+                              Cannot Delete This City
+                            </p>
+                            <p className="text-sm text-amber-800 leading-relaxed">
+                              {deleteConfirm.error}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                        <p className="text-xs font-medium text-blue-900 mb-1">What to do next:</p>
+                        <ul className="text-xs text-blue-800 space-y-1 list-disc list-inside">
+                          <li>Go to the relevant management pages (Hotels, Attractions, Flights, Tours)</li>
+                          <li>Find the records using this city</li>
+                          <li>Update their city to a different one</li>
+                          <li>Then come back here to delete this city</li>
+                        </ul>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-600">
+                      {deleteConfirm.city
+                        ? `Are you sure you want to delete city "${deleteConfirm.city.CityName}"? This action cannot be undone.`
+                        : "Are you sure you want to delete this city?"}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-b-xl flex justify-end gap-3">
+              <button
+                onClick={() => setDeleteConfirm({ isOpen: false, city: null, error: null, deleting: false })}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition shadow-sm"
+              >
+                {deleteConfirm.error ? "Close" : "Cancel"}
+              </button>
+              {!deleteConfirm.error && (
+                <button
+                  onClick={confirmDelete}
+                  disabled={deleteConfirm.deleting}
+                  className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition shadow-md ${
+                    deleteConfirm.deleting
+                      ? 'bg-red-400 cursor-not-allowed'
+                      : 'bg-red-600 hover:bg-red-700'
+                  }`}
+                >
+                  {deleteConfirm.deleting ? "Deleting..." : "Delete"}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

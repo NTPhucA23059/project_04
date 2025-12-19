@@ -8,7 +8,6 @@ import {
 } from "../../../services/staff/flightStaffService";
 import { getAllCities } from "../../../services/staff/cityStaffService";
 import { toast } from "../../shared/toast/toast";
-import ConfirmDialog from "../../shared/confirm/ConfirmDialog";
 import FlightFilters from "./FlightFilters";
 import FlightTable from "./FlightTable";
 import FlightFormModal from "./FlightFormModal";
@@ -56,12 +55,7 @@ export default function FlightManagement() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const [confirmDialog, setConfirmDialog] = useState({
-    isOpen: false,
-    title: "",
-    message: "",
-    onConfirm: null,
-  });
+  const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, flight: null, error: null, deleting: false });
 
   // Helpers
   const cityNameById = useMemo(() => {
@@ -226,31 +220,77 @@ export default function FlightManagement() {
       loadFlights();
     } catch (err) {
       console.error("Save flight error:", err);
-      toast.error(err.message || "Save failed");
+      
+      // Get backend message
+      let backendMsg = err?.response?.data?.message || err?.response?.data?.error || err?.message || "";
+      
+      // Convert to user-friendly message
+      let userFriendlyMsg = "";
+      
+      if (backendMsg.toLowerCase().includes("already exists")) {
+        if (backendMsg.toLowerCase().includes("code")) {
+          userFriendlyMsg = "This flight code is already in use. Please choose a different code.";
+        } else {
+          userFriendlyMsg = "This flight already exists. Please check the code.";
+        }
+      } else if (backendMsg.toLowerCase().includes("not found")) {
+        userFriendlyMsg = "Flight not found. Please refresh the page and try again.";
+      } else if (backendMsg.toLowerCase().includes("validation") || backendMsg.toLowerCase().includes("required")) {
+        userFriendlyMsg = "Please fill in all required fields correctly.";
+      } else if (backendMsg) {
+        userFriendlyMsg = "Unable to save flight. Please check your input and try again.";
+      } else {
+        userFriendlyMsg = "Unable to save flight. Please check your connection and try again.";
+      }
+
+      toast.error(userFriendlyMsg);
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = (f) => {
-    setConfirmDialog({
-      isOpen: true,
-      title: "Delete Flight",
-      message: `Are you sure you want to delete flight ${f.flightCode}? This action cannot be undone.`,
-      onConfirm: async () => {
-        try {
-          setSaving(true);
-          await deleteFlight(f.flightID);
-          toast.success("Flight deleted successfully");
-          loadFlights();
-        } catch (err) {
-          console.error("Delete flight error:", err);
-          toast.error(err.message || "Delete failed");
-        } finally {
-          setSaving(false);
-        }
-      },
-    });
+    setDeleteConfirm({ isOpen: true, flight: f, error: null, deleting: false });
+  };
+
+  const confirmDeleteFlight = async () => {
+    if (!deleteConfirm.flight || deleteConfirm.deleting) return;
+
+    try {
+      setDeleteConfirm(prev => ({ ...prev, deleting: true, error: null }));
+      await deleteFlight(deleteConfirm.flight.flightID);
+      toast.success("Flight deleted successfully");
+      setDeleteConfirm({ isOpen: false, flight: null, error: null, deleting: false });
+      loadFlights();
+    } catch (err) {
+      console.error("Delete flight error:", err.response?.data || err.message || err);
+      
+      // Get error message from response
+      let backendMsg = "";
+      
+      if (err?.response?.data?.message) {
+        backendMsg = err.response.data.message;
+      } else if (err?.response?.data?.error) {
+        backendMsg = err.response.data.error;
+      } else if (err?.message) {
+        backendMsg = err.message;
+      }
+
+      // Convert technical message to user-friendly message
+      let userFriendlyMsg = "";
+      
+      if (backendMsg.toLowerCase().includes("not found")) {
+        userFriendlyMsg = "This flight no longer exists. Please refresh the page.";
+      } else if (backendMsg) {
+        userFriendlyMsg = "Unable to delete this flight. Please try again later or contact support if the problem persists.";
+      } else {
+        userFriendlyMsg = "Unable to delete this flight. Please check your connection and try again.";
+      }
+
+      // Show error in dialog and toast
+      setDeleteConfirm(prev => ({ ...prev, error: userFriendlyMsg, deleting: false }));
+      toast.error(userFriendlyMsg);
+    }
   };
 
   const handleOpenDetail = async (f) => {
@@ -396,21 +436,75 @@ export default function FlightManagement() {
       />
 
       {/* Confirmation Dialog */}
-      <ConfirmDialog
-        isOpen={confirmDialog.isOpen}
-        onClose={() =>
-          setConfirmDialog((prev) => ({ ...prev, isOpen: false }))
-        }
-        onConfirm={() => {
-          if (confirmDialog.onConfirm) {
-            confirmDialog.onConfirm();
-          }
-          setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
-        }}
-        title={confirmDialog.title}
-        message={confirmDialog.message}
-        type="danger"
-      />
+      {/* Delete Confirmation Dialog */}
+      {deleteConfirm.isOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full transform transition-all border border-gray-200/50">
+            <div className="p-6">
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0 bg-red-100 rounded-full p-3">
+                  <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    Delete Flight
+                  </h3>
+                  {deleteConfirm.error ? (
+                    <div className="space-y-3">
+                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                        <div className="flex items-start gap-3">
+                          <div className="flex-shrink-0">
+                            <svg className="h-6 w-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold text-amber-900 mb-2">
+                              Cannot Delete This Flight
+                            </p>
+                            <p className="text-sm text-amber-800 leading-relaxed">
+                              {deleteConfirm.error}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-600">
+                      {deleteConfirm.flight
+                        ? `Are you sure you want to delete flight "${deleteConfirm.flight.flightCode}"? This action cannot be undone.`
+                        : "Are you sure you want to delete this flight?"}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-b-xl flex justify-end gap-3">
+              <button
+                onClick={() => setDeleteConfirm({ isOpen: false, flight: null, error: null, deleting: false })}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition shadow-sm"
+              >
+                {deleteConfirm.error ? "Close" : "Cancel"}
+              </button>
+              {!deleteConfirm.error && (
+                <button
+                  onClick={confirmDeleteFlight}
+                  disabled={deleteConfirm.deleting}
+                  className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition shadow-md ${
+                    deleteConfirm.deleting
+                      ? 'bg-red-400 cursor-not-allowed'
+                      : 'bg-red-600 hover:bg-red-700'
+                  }`}
+                >
+                  {deleteConfirm.deleting ? "Deleting..." : "Delete"}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

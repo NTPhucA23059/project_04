@@ -21,7 +21,6 @@ import {
   deleteTourDetail,
 } from "../../../services/staff/tourDetailStaffService";
 import { toast } from "../../shared/toast/toast";
-import ConfirmDialog from "../../shared/confirm/ConfirmDialog";
 import TourFilters from "./TourFilters";
 import TourTable from "./TourTable";
 import TourFormModal from "./TourFormModal";
@@ -321,25 +320,58 @@ export default function TourManagement() {
     }
   };
 
-  const handleDelete = async (tour) => {
-        setConfirmDialog({
-            isOpen: true,
-            title: "Delete Tour",
-            message: `Are you sure you want to delete tour ${tour.tourCode}? This action cannot be undone.`,
-            onConfirm: async () => {
-                setSaving(true);
-                try {
-                    await deleteTour(tour.tourID);
-                    toast.success("Tour deleted successfully");
-                    loadTours();
-                } catch (err) {
-                    toast.error(err?.message || "Delete failed");
-                } finally {
-                    setSaving(false);
-                }
-            },
-        });
-    };
+  const handleDelete = (tour) => {
+    setDeleteConfirm({ isOpen: true, tour: tour, error: null, deleting: false });
+  };
+
+  const confirmDeleteTour = async () => {
+    if (!deleteConfirm.tour || deleteConfirm.deleting) return;
+
+    try {
+      setDeleteConfirm(prev => ({ ...prev, deleting: true, error: null }));
+      await deleteTour(deleteConfirm.tour.tourID);
+      toast.success("Tour deleted successfully");
+      setDeleteConfirm({ isOpen: false, tour: null, error: null, deleting: false });
+      loadTours();
+    } catch (err) {
+      // Get error message from response
+      let backendMsg = "";
+      
+      if (err?.response?.data?.message) {
+        backendMsg = err.response.data.message;
+      } else if (err?.response?.data?.error) {
+        backendMsg = err.response.data.error;
+      } else if (err?.message) {
+        backendMsg = err.message;
+      }
+
+      // Convert technical message to user-friendly message
+      let userFriendlyMsg = "";
+      
+      // Check if it's a constraint error (tour is being used)
+      if (backendMsg.toLowerCase().includes("booking") || 
+          backendMsg.toLowerCase().includes("using") ||
+          backendMsg.toLowerCase().includes("cannot delete") ||
+          backendMsg.toLowerCase().includes("associated")) {
+        
+        // Extract number of bookings if available
+        const countMatch = backendMsg.match(/\d+/);
+        const count = countMatch ? countMatch[0] : "some";
+        
+        userFriendlyMsg = `This tour is currently associated with ${count} booking(s). You cannot delete it until you cancel or process those bookings first.`;
+      } else if (backendMsg.toLowerCase().includes("not found")) {
+        userFriendlyMsg = "This tour no longer exists. Please refresh the page.";
+      } else if (backendMsg) {
+        userFriendlyMsg = "Unable to delete this tour. Please try again later or contact support if the problem persists.";
+      } else {
+        userFriendlyMsg = "Unable to delete this tour. Please check your connection and try again.";
+      }
+
+      // Show error in dialog and toast
+      setDeleteConfirm(prev => ({ ...prev, error: userFriendlyMsg, deleting: false }));
+      toast.error(userFriendlyMsg);
+    }
+  };
 
   const handleMainImage = (e) =>
     setForm({
@@ -601,13 +633,46 @@ export default function TourManagement() {
               onTourDetailDelete={async (tourDetailID) => {
                 try {
                   await deleteTourDetail(tourDetailID);
-                  toast.success("Departure deleted");
+                  toast.success("Departure deleted successfully");
                   if (editing?.tourID) {
                     const updated = await getTourDetails(editing.tourID);
                     setTourDetails(updated);
                   }
                 } catch (err) {
-                  toast.error(err?.message || "Failed to delete departure");
+                  // Get error message from response
+                  let backendMsg = "";
+                  
+                  if (err?.response?.data?.message) {
+                    backendMsg = err.response.data.message;
+                  } else if (err?.response?.data?.error) {
+                    backendMsg = err.response.data.error;
+                  } else if (err?.message) {
+                    backendMsg = err.message;
+                  }
+
+                  // Convert technical message to user-friendly message
+                  let userFriendlyMsg = "";
+                  
+                  // Check if it's a constraint error (tour detail is being used)
+                  if (backendMsg.toLowerCase().includes("booking") || 
+                      backendMsg.toLowerCase().includes("using") ||
+                      backendMsg.toLowerCase().includes("cannot delete") ||
+                      backendMsg.toLowerCase().includes("associated")) {
+                    
+                    // Extract number of bookings if available
+                    const countMatch = backendMsg.match(/\d+/);
+                    const count = countMatch ? countMatch[0] : "some";
+                    
+                    userFriendlyMsg = `This departure is currently associated with ${count} booking(s). You cannot delete it until you cancel or process those bookings first.`;
+                  } else if (backendMsg.toLowerCase().includes("not found")) {
+                    userFriendlyMsg = "This departure no longer exists. Please refresh the page.";
+                  } else if (backendMsg) {
+                    userFriendlyMsg = "Unable to delete this departure. Please try again later or contact support if the problem persists.";
+                  } else {
+                    userFriendlyMsg = "Unable to delete this departure. Please check your connection and try again.";
+                  }
+
+                  toast.error(userFriendlyMsg);
                 }
               }}
             />
@@ -659,20 +724,84 @@ export default function TourManagement() {
               }}
             />
 
-            {/* Confirmation Dialog */}
-            <ConfirmDialog
-                isOpen={confirmDialog.isOpen}
-                onClose={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
-                onConfirm={() => {
-                    if (confirmDialog.onConfirm) {
-                        confirmDialog.onConfirm();
-                    }
-                    setConfirmDialog({ ...confirmDialog, isOpen: false });
-                }}
-                title={confirmDialog.title}
-                message={confirmDialog.message}
-                type="danger"
-            />
+            {/* Delete Confirmation Dialog */}
+            {deleteConfirm.isOpen && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+                    <div className="bg-white rounded-xl shadow-2xl max-w-md w-full transform transition-all border border-gray-200/50">
+                        <div className="p-6">
+                            <div className="flex items-start gap-4">
+                                <div className="flex-shrink-0 bg-red-100 rounded-full p-3">
+                                    <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </div>
+                                <div className="flex-1">
+                                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                                        Delete Tour
+                                    </h3>
+                                    {deleteConfirm.error ? (
+                                        <div className="space-y-3">
+                                            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                                                <div className="flex items-start gap-3">
+                                                    <div className="flex-shrink-0">
+                                                        <svg className="h-6 w-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                                        </svg>
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <p className="text-sm font-semibold text-amber-900 mb-2">
+                                                            Cannot Delete This Tour
+                                                        </p>
+                                                        <p className="text-sm text-amber-800 leading-relaxed">
+                                                            {deleteConfirm.error}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                                                <p className="text-xs font-medium text-blue-900 mb-1">What to do next:</p>
+                                                <ul className="text-xs text-blue-800 space-y-1 list-disc list-inside">
+                                                    <li>Go to the Bookings management page</li>
+                                                    <li>Find the bookings associated with this tour</li>
+                                                    <li>Cancel or process those bookings</li>
+                                                    <li>Then come back here to delete this tour</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm text-gray-600">
+                                            {deleteConfirm.tour
+                                                ? `Are you sure you want to delete tour "${deleteConfirm.tour.tourCode}"? This action cannot be undone.`
+                                                : "Are you sure you want to delete this tour?"}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-b-xl flex justify-end gap-3">
+                            <button
+                                onClick={() => setDeleteConfirm({ isOpen: false, tour: null, error: null, deleting: false })}
+                                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition shadow-sm"
+                            >
+                                {deleteConfirm.error ? "Close" : "Cancel"}
+                            </button>
+                            {!deleteConfirm.error && (
+                                <button
+                                    onClick={confirmDeleteTour}
+                                    disabled={deleteConfirm.deleting}
+                                    className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition shadow-md ${
+                                        deleteConfirm.deleting
+                                            ? 'bg-red-400 cursor-not-allowed'
+                                            : 'bg-red-600 hover:bg-red-700'
+                                    }`}
+                                >
+                                    {deleteConfirm.deleting ? "Deleting..." : "Delete"}
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
