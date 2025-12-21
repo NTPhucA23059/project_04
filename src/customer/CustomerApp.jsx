@@ -205,6 +205,7 @@ export default function CustomerApp() {
             </div>
           }
         />
+       
         <Route
           path="/checkoutCar/:id" element={
             <div className="flex flex-col min-h-screen">

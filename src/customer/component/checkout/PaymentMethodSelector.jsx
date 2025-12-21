@@ -7,11 +7,10 @@ export default function PaymentMethodSelector({ form, errors, onUpdate }) {
 
             <div className="space-y-3">
                 {/* COD */}
-                <label className={`flex items-start gap-4 p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                    form.PaymentMethod === "COD" 
-                        ? "border-primary-500 bg-primary-50" 
+                <label className={`flex items-start gap-4 p-4 border-2 rounded-lg cursor-pointer transition-all ${form.PaymentMethod === "COD"
+                        ? "border-primary-500 bg-primary-50"
                         : "border-gray-200 hover:border-gray-300"
-                }`}>
+                    }`}>
                     <input
                         type="radio"
                         name="paymentMethod"
@@ -30,7 +29,7 @@ export default function PaymentMethodSelector({ form, errors, onUpdate }) {
                         {form.PaymentMethod === "COD" && (
                             <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                                 <p className="text-sm text-yellow-800 font-medium">
-                                    ⚠️ <strong>Important Notice:</strong> You must come to the office to pay within <strong>24 hours</strong> from booking time. 
+                                    ⚠️ <strong>Important Notice:</strong> You must come to the office to pay within <strong>24 hours</strong> from booking time.
                                     If payment is not made within this time, the order will be automatically cancelled.
                                 </p>
                             </div>
@@ -39,11 +38,10 @@ export default function PaymentMethodSelector({ form, errors, onUpdate }) {
                 </label>
 
                 {/* MOMO */}
-                <label className={`flex items-start gap-4 p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                    form.PaymentMethod === "MOMO" 
-                        ? "border-primary-500 bg-primary-50" 
+                <label className={`flex items-start gap-4 p-4 border-2 rounded-lg cursor-pointer transition-all ${form.PaymentMethod === "MOMO"
+                        ? "border-primary-500 bg-primary-50"
                         : "border-gray-200 hover:border-gray-300"
-                }`}>
+                    }`}>
                     <input
                         type="radio"
                         name="paymentMethod"
@@ -54,7 +52,7 @@ export default function PaymentMethodSelector({ form, errors, onUpdate }) {
                     />
                     <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                            <span className="font-semibold text-gray-900">MoMo Wallet</span>
+                            <span className="font-semibold text-gray-900">MoMo</span>
                         </div>
                         <p className="text-sm text-gray-600">
                             Fast and secure payment via MoMo e-wallet
@@ -63,11 +61,10 @@ export default function PaymentMethodSelector({ form, errors, onUpdate }) {
                 </label>
 
                 {/* PAYPAL */}
-                <label className={`flex items-start gap-4 p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                    form.PaymentMethod === "PAYPAL" 
-                        ? "border-primary-500 bg-primary-50" 
+                <label className={`flex items-start gap-4 p-4 border-2 rounded-lg cursor-pointer transition-all ${form.PaymentMethod === "PAYPAL"
+                        ? "border-primary-500 bg-primary-50"
                         : "border-gray-200 hover:border-gray-300"
-                }`}>
+                    }`}>
                     <input
                         type="radio"
                         name="paymentMethod"

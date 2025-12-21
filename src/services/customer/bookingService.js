@@ -92,6 +92,22 @@ export const fetchBookingFull = async (id) => {
   }
 };
 
+/**
+ * Lấy full thông tin booking theo orderCode (booking + tour + customer)
+ */
+export const fetchBookingFullByOrderCode = async (orderCode) => {
+  try {
+    const res = await api.get(`${BOOKING_BASE}/by-order-code/${orderCode}/full`);
+    return res.data;
+  } catch (error) {
+    const errorMessage =
+      error.response?.data?.error ||
+      error.response?.data?.message ||
+      "Không thể lấy thông tin booking";
+    throw new Error(errorMessage);
+  }
+};
+
 
 
 

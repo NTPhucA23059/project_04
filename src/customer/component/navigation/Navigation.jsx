@@ -228,11 +228,11 @@ export default function Navigation() {
 
                             {/* Logo */}
                             <div className="ml-4 flex lg:ml-0">
-                                <a href="#">
+                                <a href="/">
                                     <img
                                         src={logo}
                                         alt="Logo"
-                                        className="h-14 w-14 rounded-full object-cover drop-shadow-xl border-2 border-primary-500"
+                                        className="h-14 w-14 rounded-full "
                                     />
                                 </a>
                             </div>

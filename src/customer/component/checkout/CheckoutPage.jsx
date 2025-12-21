@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { createCustomerInfo, createBookingTour } from "../../../services/customer/bookingService";
 import { getCurrentUser } from "../../../services/common/authService";
+import { processTourPayment as processPayPalPayment } from "../../../services/customer/paypalPaymentService";
+import { processTourPayment as processMomoPayment } from "../../../services/customer/momoPaymentService";
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 import CheckoutHeader from "./CheckoutHeader";
 import CustomerInfoForm from "./CustomerInfoForm";
@@ -98,7 +100,7 @@ export default function CheckoutPage() {
             if (/[0-9]/.test(v)) {
                 return "Full name cannot contain numbers. Please enter letters only.";
             }
-            if (/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(v)) {
+            if (/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>/?]/.test(v)) {
                 return "Full name cannot contain special characters. Please enter letters and spaces only.";
             }
             if (v.trim().length < 3) {
@@ -267,7 +269,58 @@ export default function CheckoutPage() {
                 CustomerCitizenCard: form.CustomerCitizenCard,
             };
 
-            // Step 4: Navigate to success page
+            // Step 4: Handle payment based on payment method
+            if (form.PaymentMethod === "PAYPAL") {
+                try {
+                    // Convert VND to USD (assuming booking is in VND, adjust exchange rate as needed)
+                    // You can get real-time exchange rate from an API if needed
+                    const exchangeRate = 24000; // 1 USD = 24000 VND (adjust as needed)
+                    const amountInUSD = parseFloat((booking.orderTotal / exchangeRate).toFixed(2));
+
+                    // Process PayPal payment
+                    const approvalUrl = await processPayPalPayment(
+                        {
+                            orderCode: booking.orderCode,
+                            orderTotal: amountInUSD,
+                        },
+                        "USD"
+                    );
+
+                    // Redirect to PayPal
+                    window.location.href = approvalUrl;
+                    return; // Don't navigate to success page yet, wait for PayPal return
+                } catch (paypalError) {
+                    console.error("PayPal payment error:", paypalError);
+                    setSubmitError(
+                        paypalError.message || 
+                        "Failed to initialize PayPal payment. Please try again or choose another payment method."
+                    );
+                    setIsSubmitting(false);
+                    return;
+                }
+            } else if (form.PaymentMethod === "MOMO") {
+                try {
+                    // Process MoMo payment (amount is in VND)
+                    const payUrl = await processMomoPayment({
+                        orderCode: booking.orderCode,
+                        orderTotal: booking.orderTotal,
+                    });
+
+                    // Redirect to MoMo
+                    window.location.href = payUrl;
+                    return; // Don't navigate to success page yet, wait for MoMo return
+                } catch (momoError) {
+                    console.error("MoMo payment error:", momoError);
+                    setSubmitError(
+                        momoError.message || 
+                        "Failed to initialize MoMo payment. Please try again or choose another payment method."
+                    );
+                    setIsSubmitting(false);
+                    return;
+                }
+            }
+
+            // Step 5: Navigate to success page (for COD only)
             navigate("/booking-success", {
                 state: {
                     payload: payload,
