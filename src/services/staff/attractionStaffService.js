@@ -31,16 +31,17 @@ export const getAttractionById = async (id) => {
   return res.data;
 };
 
-// Create attraction (multipart: attraction json + image)
+// Create attraction (JSON only - backend doesn't support multipart)
 export const createAttraction = async ({ attraction, image }) => {
-  const formData = new FormData();
-  formData.append("attraction", JSON.stringify(attraction));
-  if (image) {
-    formData.append("image", image);
-  }
-
-  const res = await api.post(BASE, formData, {
-    headers: { "Content-Type": "multipart/form-data" },
+  // Backend only accepts JSON (@RequestBody), not multipart/form-data
+  // If image upload is needed in the future, backend needs to be updated to support @RequestPart
+  // Ignore image parameter - backend doesn't support image upload for attractions
+  
+  // Explicitly set Content-Type to JSON to ensure we're not sending multipart
+  const res = await api.post(BASE, attraction, {
+    headers: {
+      'Content-Type': 'application/json'
+    }
   });
   return res.data;
 };
@@ -53,9 +54,8 @@ export const updateAttractionMultipart = async ({ id, attraction, image }) => {
     formData.append("image", image);
   }
 
-  const res = await api.put(`${BASE}/${id}`, formData, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
+  // Don't set Content-Type manually - let browser set it with boundary automatically
+  const res = await api.put(`${BASE}/${id}`, formData);
   return res.data;
 };
 

@@ -43,10 +43,10 @@ export default function HeroSection() {
                     <div className="relative h-[500px] lg:h-[600px] rounded-2xl overflow-hidden bg-gradient-to-br from-orange-200 via-amber-100 to-yellow-50 category-card shadow-xl hover:shadow-2xl transition-all duration-500 group">
                         {/* Background Image with Overlay */}
                         <div className="absolute inset-0">
-                            <img 
-                                src={cat1} 
-                                alt="World Travel" 
-                                className="w-full h-full object-cover opacity-20 group-hover:opacity-30 transition-opacity duration-500"
+                            <img
+                                src={cat1}
+                                alt="World Travel"
+                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                             />
                             <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent"></div>
                         </div>
@@ -78,17 +78,18 @@ export default function HeroSection() {
                     {/* RIGHT GRID */}
                     <div className="grid grid-cols-2 gap-4 lg:gap-6">
                         {categories.map((cat, i) => (
-                            <div 
-                                key={i} 
+                            <div
+                                key={i}
                                 className={`category-card h-[240px] lg:h-[290px] rounded-xl overflow-hidden ${cat.bg} shadow-lg hover:shadow-2xl transition-all duration-500 group cursor-pointer`}
                             >
                                 {/* Background Image */}
                                 <div className="absolute inset-0">
-                                    <img 
-                                        src={cat.image} 
+                                    <img
+                                        src={cat.image}
                                         alt={cat.title}
-                                        className="w-full h-full object-cover opacity-15 group-hover:opacity-25 transition-opacity duration-500"
+                                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                                     />
+
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent"></div>
                                 </div>
 
