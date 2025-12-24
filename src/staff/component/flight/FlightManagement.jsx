@@ -39,9 +39,16 @@ export default function FlightManagement() {
   const [toCityFilter, setToCityFilter] = useState("");
 
   const [page, setPage] = useState(0);
-  const [size] = useState(10);
+  const [size, setSize] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
   const [total, setTotal] = useState(0);
+
+  // Statistics
+  const [stats, setStats] = useState({
+    total: 0,
+    active: 0,
+    inactive: 0,
+  });
 
   const [openModal, setOpenModal] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -101,12 +108,17 @@ export default function FlightManagement() {
       departureTime: f.departureTime ? new Date(f.departureTime) : null,
       arrivalTime: f.arrivalTime ? new Date(f.arrivalTime) : null,
       durationMinutes:
-        f.durationMinutes === "" ? null : Number(f.durationMinutes),
-      price: f.price === "" ? null : Number(f.price),
-      scheduleInfo: f.scheduleInfo?.trim() || "",
-      flightType: f.flightType?.trim() || "",
-      imageURL: f.imageURL?.trim() || null,
-      status: f.status === "" ? null : Number(f.status),
+        f.durationMinutes === "" || f.durationMinutes === null || f.durationMinutes === undefined
+          ? null
+          : Number(f.durationMinutes),
+      price:
+        f.price === "" || f.price === null || f.price === undefined
+          ? null
+          : Number(f.price),
+      scheduleInfo: f.scheduleInfo && f.scheduleInfo.trim() ? f.scheduleInfo.trim() : null,
+      flightType: f.flightType && f.flightType.trim() ? f.flightType.trim() : null,
+      imageURL: f.imageURL && f.imageURL.trim() ? f.imageURL.trim() : null,
+      status: f.status === "" || f.status === null || f.status === undefined ? null : Number(f.status),
     };
     if (isCreate) {
       return {
@@ -120,20 +132,151 @@ export default function FlightManagement() {
   // Validate
   const validate = (isCreate) => {
     const e = {};
-    if (isCreate && !form.flightCode.trim())
-      e.flightCode = "Flight code is required";
-    if (!form.airline.trim()) e.airline = "Airline is required";
-    if (!form.fromCityID) e.fromCityID = "From city is required";
-    if (!form.toCityID) e.toCityID = "To city is required";
-    if (!form.departureTime) e.departureTime = "Departure time is required";
-    if (!form.arrivalTime) e.arrivalTime = "Arrival time is required";
-    if (form.durationMinutes !== "" && Number(form.durationMinutes) < 0)
-      e.durationMinutes = "Duration must be >= 0";
-    if (form.price !== "" && Number(form.price) < 0)
-      e.price = "Price must be >= 0";
-    if (![0, 1].includes(Number(form.status)))
-      e.status = "Status must be 0 or 1";
-
+    
+    // Flight Code: required when creating, max 50 characters, must be unique (backend will check)
+    if (isCreate) {
+      const flightCodeTrimmed = form.flightCode.trim();
+      if (!flightCodeTrimmed) {
+        e.flightCode = "Flight code is required";
+      } else if (flightCodeTrimmed.length > 50) {
+        e.flightCode = "Flight code must be 50 characters or less";
+      } else if (flightCodeTrimmed.length < 2) {
+        e.flightCode = "Flight code must be at least 2 characters";
+      }
+    }
+    
+    // Airline: required, not blank
+    const airlineTrimmed = form.airline.trim();
+    if (!airlineTrimmed) {
+      e.airline = "Airline is required";
+    } else if (airlineTrimmed.length > 200) {
+      e.airline = "Airline name must be 200 characters or less";
+    } else if (airlineTrimmed.length < 2) {
+      e.airline = "Airline name must be at least 2 characters";
+    }
+    
+    // From City: required, must be valid number
+    if (!form.fromCityID) {
+      e.fromCityID = "From city is required";
+    } else {
+      const fromCityNum = Number(form.fromCityID);
+      if (isNaN(fromCityNum) || fromCityNum <= 0 || !Number.isInteger(fromCityNum)) {
+        e.fromCityID = "Please select a valid from city";
+      }
+    }
+    
+    // To City: required, must be valid number, cannot be same as from city
+    if (!form.toCityID) {
+      e.toCityID = "To city is required";
+    } else {
+      const toCityNum = Number(form.toCityID);
+      if (isNaN(toCityNum) || toCityNum <= 0 || !Number.isInteger(toCityNum)) {
+        e.toCityID = "Please select a valid to city";
+      } else if (form.fromCityID && Number(form.fromCityID) === toCityNum) {
+        e.toCityID = "To city must be different from from city";
+      }
+    }
+    
+    // Departure Time: required, must be valid date
+    if (!form.departureTime) {
+      e.departureTime = "Departure time is required";
+    } else {
+      const depTime = new Date(form.departureTime);
+      if (isNaN(depTime.getTime())) {
+        e.departureTime = "Please enter a valid departure time";
+      }
+    }
+    
+    // Arrival Time: required, must be valid date, must be after departure time
+    if (!form.arrivalTime) {
+      e.arrivalTime = "Arrival time is required";
+    } else {
+      const arrTime = new Date(form.arrivalTime);
+      if (isNaN(arrTime.getTime())) {
+        e.arrivalTime = "Please enter a valid arrival time";
+      } else if (form.departureTime) {
+        const depTime = new Date(form.departureTime);
+        if (!isNaN(depTime.getTime()) && arrTime <= depTime) {
+          e.arrivalTime = "Arrival time must be after departure time";
+        }
+      }
+    }
+    
+    // Duration Minutes: optional, but if provided must be integer >= 0, reasonable max (e.g., 1440 = 24 hours)
+    if (form.durationMinutes !== "" && form.durationMinutes !== null && form.durationMinutes !== undefined) {
+      const durationNum = Number(form.durationMinutes);
+      if (isNaN(durationNum)) {
+        e.durationMinutes = "Duration must be a valid number";
+      } else if (!Number.isInteger(durationNum)) {
+        e.durationMinutes = "Duration must be an integer (minutes)";
+      } else if (durationNum < 0) {
+        e.durationMinutes = "Duration must be 0 or greater";
+      } else if (durationNum > 1440) {
+        e.durationMinutes = "Duration must be 1440 minutes (24 hours) or less";
+      }
+    }
+    
+    // Price: optional, but if provided must be >= 0, max 2 decimal places
+    if (form.price !== "" && form.price !== null && form.price !== undefined) {
+      const priceNum = Number(form.price);
+      if (isNaN(priceNum)) {
+        e.price = "Price must be a valid number";
+      } else if (priceNum < 0) {
+        e.price = "Price must be 0 or greater";
+      } else {
+        // Check decimal places (max 2)
+        const priceStr = form.price.toString();
+        const decimalPlaces = (priceStr.split('.')[1] || '').length;
+        if (decimalPlaces > 2) {
+          e.price = "Price can have at most 2 decimal places";
+        }
+      }
+    }
+    
+    // Schedule Info: optional, but if provided max length
+    if (form.scheduleInfo && form.scheduleInfo.trim()) {
+      const scheduleTrimmed = form.scheduleInfo.trim();
+      if (scheduleTrimmed.length > 500) {
+        e.scheduleInfo = "Schedule info must be 500 characters or less";
+      }
+    }
+    
+    // Flight Type: optional, but if provided max length
+    if (form.flightType && form.flightType.trim()) {
+      const flightTypeTrimmed = form.flightType.trim();
+      if (flightTypeTrimmed.length > 100) {
+        e.flightType = "Flight type must be 100 characters or less";
+      }
+    }
+    
+    // Image URL: optional, but if provided should be valid URL format
+    if (form.imageURL && form.imageURL.trim()) {
+      const imageURLTrimmed = form.imageURL.trim();
+      if (imageURLTrimmed.length > 500) {
+        e.imageURL = "Image URL must be 500 characters or less";
+      } else {
+        // Basic URL validation
+        try {
+          new URL(imageURLTrimmed);
+        } catch {
+          // If it's not a full URL, check if it's a relative path or just a filename
+          if (!imageURLTrimmed.startsWith('/') && !imageURLTrimmed.match(/^[a-zA-Z0-9._-]+$/)) {
+            e.imageURL = "Please enter a valid URL or file path";
+          }
+        }
+      }
+    }
+    
+    // Status: required, must be 0 or 1
+    if (form.status === "" || form.status === null || form.status === undefined) {
+      e.status = "Status is required";
+    } else {
+      const statusNum = Number(form.status);
+      if (isNaN(statusNum) || (statusNum !== 0 && statusNum !== 1)) {
+        e.status = "Status must be Active (1) or Inactive (0)";
+      }
+    }
+    
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -164,12 +307,43 @@ export default function FlightManagement() {
     }
   };
 
+  // ============================
+  // LOAD STATISTICS
+  // ============================
+  const loadStats = async () => {
+    try {
+      // Load all flights to calculate stats
+      const res = await searchFlights({
+        page: 0,
+        size: 1000, // Get all for stats
+        keyword: undefined,
+        status: undefined,
+        fromCityID: undefined,
+        toCityID: undefined,
+      });
+
+      const allItems = res.items || [];
+      const totalCount = allItems.length;
+      const active = allItems.filter((item) => item.status === 1).length;
+      const inactive = totalCount - active;
+
+      setStats({
+        total: totalCount,
+        active,
+        inactive,
+      });
+    } catch (err) {
+      console.error("Failed to load stats", err);
+    }
+  };
+
   useEffect(() => {
     // load cities and first page
     getAllCities()
       .then((list) => setCities(list))
       .catch(() => {});
     loadFlights();
+    loadStats();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -177,7 +351,7 @@ export default function FlightManagement() {
     const id = setTimeout(loadFlights, 400);
     return () => clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, page, statusFilter, fromCityFilter, toCityFilter]);
+  }, [search, page, size, statusFilter, fromCityFilter, toCityFilter]);
 
   // Actions
   const handleOpenCreate = () => {
@@ -218,6 +392,7 @@ export default function FlightManagement() {
       setForm(emptyForm);
       setImageFile(null);
       loadFlights();
+      loadStats();
     } catch (err) {
       console.error("Save flight error:", err);
       
@@ -262,6 +437,7 @@ export default function FlightManagement() {
       toast.success("Flight deleted successfully");
       setDeleteConfirm({ isOpen: false, flight: null, error: null, deleting: false });
       loadFlights();
+      loadStats();
     } catch (err) {
       console.error("Delete flight error:", err.response?.data || err.message || err);
       
@@ -345,6 +521,51 @@ export default function FlightManagement() {
         </button>
       </div>
 
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-neutral-600 mb-1">Total Flights</p>
+              <p className="text-2xl font-bold text-neutral-900">{stats.total}</p>
+            </div>
+            <div className="p-3 bg-primary-100 rounded-lg">
+              <svg className="h-6 w-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-neutral-600 mb-1">Active Flights</p>
+              <p className="text-2xl font-bold text-green-600">{stats.active}</p>
+            </div>
+            <div className="p-3 bg-green-100 rounded-lg">
+              <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-neutral-600 mb-1">Inactive Flights</p>
+              <p className="text-2xl font-bold text-red-600">{stats.inactive}</p>
+            </div>
+            <div className="p-3 bg-red-100 rounded-lg">
+              <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Filters */}
       <FlightFilters
         search={search}
@@ -384,27 +605,104 @@ export default function FlightManagement() {
       />
 
       {/* Pagination */}
-      <div className="flex items-center justify-between mt-4 text-sm">
-        <div className="text-neutral-600">
-          Page {page + 1} / {Math.max(totalPages, 1)} • Total {total}
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setPage((p) => Math.max(p - 1, 0))}
-            disabled={page <= 0}
-            className="px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-700 disabled:opacity-50 disabled:bg-neutral-100 hover:bg-primary-50 hover:border-primary-300 transition"
+      <div className="flex items-center justify-between mt-4 flex-wrap gap-4">
+        {/* Showing info */}
+        <p className="text-sm text-neutral-600 font-medium">
+          {total === 0
+            ? "No flights"
+            : `Showing ${page * size + 1}–${Math.min((page + 1) * size, total)} of ${total} flights`}
+        </p>
+
+        <div className="flex items-center gap-4">
+          {/* Page size selector */}
+          <select
+            value={size}
+            onChange={(e) => {
+              setSize(Number(e.target.value));
+              setPage(0);
+            }}
+            className="border border-neutral-200 bg-white px-3 py-1.5 rounded-lg text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-200 focus:outline-none"
           >
-            Prev
-          </button>
-          <button
-            onClick={() =>
-              setPage((p) => (p + 1 < totalPages ? p + 1 : p))
-            }
-            disabled={page + 1 >= totalPages}
-            className="px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-700 disabled:opacity-50 disabled:bg-neutral-100 hover:bg-primary-50 hover:border-primary-300 transition"
-          >
-            Next
-          </button>
+            <option value={5}>5 per page</option>
+            <option value={10}>10 per page</option>
+            <option value={20}>20 per page</option>
+            <option value={50}>50 per page</option>
+          </select>
+
+          {/* Page navigation */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(p - 1, 0))}
+              disabled={page <= 0}
+              className="px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-700 disabled:opacity-50 disabled:bg-neutral-100 hover:bg-primary-50 hover:border-primary-300 transition"
+            >
+              Prev
+            </button>
+            
+            {/* Page numbers */}
+            {totalPages > 0 && (() => {
+              const pages = [];
+              const maxVisible = 7;
+              
+              if (totalPages <= maxVisible) {
+                for (let i = 0; i < totalPages; i++) {
+                  pages.push(i);
+                }
+              } else {
+                pages.push(0);
+                if (page <= 3) {
+                  for (let i = 1; i <= 4; i++) {
+                    pages.push(i);
+                  }
+                  pages.push('...');
+                  pages.push(totalPages - 1);
+                } else if (page >= totalPages - 4) {
+                  pages.push('...');
+                  for (let i = totalPages - 5; i < totalPages; i++) {
+                    pages.push(i);
+                  }
+                } else {
+                  pages.push('...');
+                  for (let i = page - 1; i <= page + 1; i++) {
+                    pages.push(i);
+                  }
+                  pages.push('...');
+                  pages.push(totalPages - 1);
+                }
+              }
+              
+              return pages.map((pageNum, idx) => {
+                if (pageNum === '...') {
+                  return (
+                    <span key={`ellipsis-${idx}`} className="px-2 text-neutral-400">
+                      ...
+                    </span>
+                  );
+                }
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setPage(pageNum)}
+                    className={`px-3 py-1.5 rounded-lg border transition ${
+                      page === pageNum
+                        ? "bg-primary-600 text-white border-primary-600"
+                        : "bg-white border-neutral-200 text-neutral-700 hover:bg-primary-50 hover:border-primary-300"
+                    }`}
+                  >
+                    {pageNum + 1}
+                  </button>
+                );
+              });
+            })()}
+            
+            <button
+              onClick={() => setPage((p) => (p + 1 < totalPages ? p + 1 : p))}
+              disabled={page + 1 >= totalPages}
+              className="px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-700 disabled:opacity-50 disabled:bg-neutral-100 hover:bg-primary-50 hover:border-primary-300 transition"
+            >
+              Next
+            </button>
+          </div>
         </div>
       </div>
 

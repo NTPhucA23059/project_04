@@ -57,9 +57,22 @@ api.interceptors.response.use(
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       
-      // Chỉ redirect nếu không phải đang ở trang login
+      // Chỉ redirect nếu không phải đang ở trang login hoặc các trang detail public
       const currentPath = window.location.pathname;
-      if (!currentPath.includes('/login') && !currentPath.includes('/admin/login')) {
+      const isPublicDetailPage = 
+        /^\/tours\/\d+$/.test(currentPath) ||
+        /^\/hotels\/\d+$/.test(currentPath) ||
+        /^\/flights\/\d+$/.test(currentPath) ||
+        /^\/car\/\d+$/.test(currentPath) ||
+        currentPath === '/' ||
+        currentPath === '/tours' ||
+        currentPath === '/hotels' ||
+        currentPath === '/flights' ||
+        currentPath === '/cars';
+      
+      if (!currentPath.includes('/login') && 
+          !currentPath.includes('/admin/login') && 
+          !isPublicDetailPage) {
         // Redirect về login phù hợp (customer hoặc admin)
         if (currentPath.includes('/admin')) {
           window.location.href = '/admin/login';

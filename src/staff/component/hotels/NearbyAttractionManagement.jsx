@@ -28,9 +28,14 @@ export default function NearbyAttractionManagement() {
   const [selectedAttractionType, setSelectedAttractionType] = useState("");
   const [hotels, setHotels] = useState([]);
   const [page, setPage] = useState(0);
-  const [size] = useState(10);
+  const [size, setSize] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
   const [total, setTotal] = useState(0);
+
+  // Statistics
+  const [stats, setStats] = useState({
+    total: 0,
+  });
 
   const [openModal, setOpenModal] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -77,22 +82,47 @@ export default function NearbyAttractionManagement() {
     }
   };
 
+  // ============================
+  // LOAD STATISTICS
+  // ============================
+  const loadStats = async () => {
+    try {
+      // Load all attractions to calculate stats
+      const res = await searchNearbyAttractions({
+        page: 0,
+        size: 1000, // Get all for stats
+        keyword: undefined,
+        hotelID: undefined,
+        attractionType: undefined,
+      });
+
+      const totalCount = res.items?.length || 0;
+      setStats({
+        total: totalCount,
+      });
+    } catch (err) {
+      console.error("Failed to load stats", err);
+    }
+  };
+
   useEffect(() => {
     loadAttractions();
     loadHotels();
+    loadStats();
   }, []);
 
   useEffect(() => {
     const id = setTimeout(() => {
       setPage(0);
       loadAttractions();
+      loadStats();
     }, 400);
     return () => clearTimeout(id);
   }, [search, selectedHotelID, selectedAttractionType]);
 
   useEffect(() => {
     loadAttractions();
-  }, [page]);
+  }, [page, size]);
 
   // ================= MAP HELPERS =================
   const toForm = (a) => ({
@@ -108,21 +138,94 @@ export default function NearbyAttractionManagement() {
 
   const toPayload = (f) => ({
     hotelID: f.hotelID ? Number(f.hotelID) : null,
-    attractionName: f.attractionName,
-    attractionType: f.attractionType || null,
-    distance: f.distance === "" ? null : Number(f.distance),
-    direction: f.direction || null,
-    description: f.description || null,
-    sortOrder: f.sortOrder === "" ? 0 : Number(f.sortOrder),
+    attractionName: f.attractionName.trim(),
+    attractionType: f.attractionType && f.attractionType.trim() ? f.attractionType.trim() : null,
+    distance: f.distance === "" || f.distance === null || f.distance === undefined ? null : Number(f.distance),
+    direction: f.direction && f.direction.trim() ? f.direction.trim() : null,
+    description: f.description && f.description.trim() ? f.description.trim() : null,
+    sortOrder: f.sortOrder === "" || f.sortOrder === null || f.sortOrder === undefined ? 0 : Number(f.sortOrder),
   });
 
   // ================= VALIDATE =================
   const validate = () => {
     const e = {};
-    if (!form.hotelID) e.hotelID = "Hotel required";
-    if (!form.attractionName.trim()) e.attractionName = "Attraction name required";
-    if (form.distance !== "" && Number(form.distance) < 0) e.distance = "Distance must be >= 0";
-    if (form.sortOrder !== "" && Number(form.sortOrder) < 0) e.sortOrder = "Sort order must be >= 0";
+    
+    // Hotel ID: required, must be valid number
+    if (!form.hotelID) {
+      e.hotelID = "Hotel is required";
+    } else {
+      const hotelIDNum = Number(form.hotelID);
+      if (isNaN(hotelIDNum) || hotelIDNum <= 0 || !Number.isInteger(hotelIDNum)) {
+        e.hotelID = "Please select a valid hotel";
+      }
+    }
+    
+    // Attraction Name: required, not blank, max 255 characters
+    const attractionNameTrimmed = form.attractionName.trim();
+    if (!attractionNameTrimmed) {
+      e.attractionName = "Attraction name is required";
+    } else if (attractionNameTrimmed.length > 255) {
+      e.attractionName = "Attraction name must be 255 characters or less";
+    } else if (attractionNameTrimmed.length < 2) {
+      e.attractionName = "Attraction name must be at least 2 characters";
+    }
+    
+    // Attraction Type: optional, but if provided max 100 characters
+    if (form.attractionType && form.attractionType.trim()) {
+      const typeTrimmed = form.attractionType.trim();
+      if (typeTrimmed.length > 100) {
+        e.attractionType = "Attraction type must be 100 characters or less";
+      }
+    }
+    
+    // Distance: optional, but if provided must be valid number >= 0, max 999.99 (precision 5, scale 2)
+    if (form.distance !== "" && form.distance !== null && form.distance !== undefined) {
+      const distanceNum = Number(form.distance);
+      if (isNaN(distanceNum)) {
+        e.distance = "Distance must be a valid number";
+      } else if (distanceNum < 0) {
+        e.distance = "Distance must be 0 or greater";
+      } else if (distanceNum > 999.99) {
+        e.distance = "Distance must be 999.99 or less";
+      } else {
+        // Check decimal places (max 2)
+        const decimalPlaces = (form.distance.toString().split('.')[1] || '').length;
+        if (decimalPlaces > 2) {
+          e.distance = "Distance can have at most 2 decimal places";
+        }
+      }
+    }
+    
+    // Direction: optional, but if provided max 50 characters
+    if (form.direction && form.direction.trim()) {
+      const directionTrimmed = form.direction.trim();
+      if (directionTrimmed.length > 50) {
+        e.direction = "Direction must be 50 characters or less";
+      }
+    }
+    
+    // Description: optional, but if provided max 500 characters
+    if (form.description && form.description.trim()) {
+      const descriptionTrimmed = form.description.trim();
+      if (descriptionTrimmed.length > 500) {
+        e.description = "Description must be 500 characters or less";
+      }
+    }
+    
+    // Sort Order: must be integer >= 0, reasonable max (10000)
+    if (form.sortOrder !== "" && form.sortOrder !== null && form.sortOrder !== undefined) {
+      const sortOrderNum = Number(form.sortOrder);
+      if (isNaN(sortOrderNum)) {
+        e.sortOrder = "Sort order must be a valid number";
+      } else if (!Number.isInteger(sortOrderNum)) {
+        e.sortOrder = "Sort order must be an integer";
+      } else if (sortOrderNum < 0) {
+        e.sortOrder = "Sort order must be 0 or greater";
+      } else if (sortOrderNum > 10000) {
+        e.sortOrder = "Sort order must be 10000 or less";
+      }
+    }
+    
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -147,6 +250,7 @@ export default function NearbyAttractionManagement() {
       setEditing(null);
       setForm(emptyForm);
       loadAttractions();
+      loadStats();
     } catch (err) {
       console.error("Save attraction error:", err.response?.data || err.message || err);
       const errorMsg = err.response?.data?.message || err.response?.data?.error || err.message || "Save failed";
@@ -170,6 +274,7 @@ export default function NearbyAttractionManagement() {
       toast.success("Attraction deleted successfully");
       setDeleteConfirm({ isOpen: false, attraction: null, error: null, deleting: false });
       loadAttractions();
+      loadStats();
     } catch (err) {
       console.error("Delete attraction error:", err.response?.data || err.message || err);
       
@@ -223,6 +328,22 @@ export default function NearbyAttractionManagement() {
         >
           + Add Attraction
         </button>
+      </div>
+
+      {/* Statistics Card */}
+      <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-sm mb-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-neutral-600 mb-1">Total Nearby Attractions</p>
+            <p className="text-2xl font-bold text-neutral-900">{stats.total}</p>
+          </div>
+          <div className="p-3 bg-primary-100 rounded-lg">
+            <svg className="h-6 w-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </div>
+        </div>
       </div>
 
       {/* SEARCH & FILTERS */}
@@ -351,25 +472,76 @@ export default function NearbyAttractionManagement() {
       </div>
 
       {/* PAGINATION */}
-      <div className="flex items-center justify-between mt-4 text-sm">
-        <div className="text-neutral-600">
-          Page {page + 1} / {Math.max(totalPages, 1)} • Total {total}
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setPage((p) => Math.max(p - 1, 0))}
-            disabled={page <= 0}
-            className="px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-700 disabled:opacity-50 disabled:bg-neutral-100 hover:bg-primary-50 hover:border-primary-300 transition"
+      <div className="flex items-center justify-between mt-4 flex-wrap gap-4">
+        {/* Showing info */}
+        <p className="text-sm text-neutral-600 font-medium">
+          {total === 0
+            ? "No attractions"
+            : `Showing ${page * size + 1}–${Math.min((page + 1) * size, total)} of ${total} attractions`}
+        </p>
+
+        <div className="flex items-center gap-4">
+          {/* Page size selector */}
+          <select
+            value={size}
+            onChange={(e) => {
+              setSize(Number(e.target.value));
+              setPage(0);
+            }}
+            className="border border-neutral-200 bg-white px-3 py-1.5 rounded-lg text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-200 focus:outline-none"
           >
-            Prev
-          </button>
-          <button
-            onClick={() => setPage((p) => (p + 1 < totalPages ? p + 1 : p))}
-            disabled={page + 1 >= totalPages}
-            className="px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-700 disabled:opacity-50 disabled:bg-neutral-100 hover:bg-primary-50 hover:border-primary-300 transition"
-          >
-            Next
-          </button>
+            <option value={5}>5 per page</option>
+            <option value={10}>10 per page</option>
+            <option value={20}>20 per page</option>
+            <option value={50}>50 per page</option>
+          </select>
+
+          {/* Page navigation */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(p - 1, 0))}
+              disabled={page <= 0}
+              className="px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-700 disabled:opacity-50 disabled:bg-neutral-100 hover:bg-primary-50 hover:border-primary-300 transition"
+            >
+              Prev
+            </button>
+            
+            {/* Page numbers */}
+            {totalPages > 0 && [...Array(Math.min(totalPages, 5))].map((_, i) => {
+              let pageNum;
+              if (totalPages <= 5) {
+                pageNum = i;
+              } else if (page < 2) {
+                pageNum = i;
+              } else if (page >= totalPages - 3) {
+                pageNum = totalPages - 5 + i;
+              } else {
+                pageNum = page - 2 + i;
+              }
+              
+              return (
+                <button
+                  key={i}
+                  onClick={() => setPage(pageNum)}
+                  className={`px-3 py-1.5 rounded-lg border transition ${
+                    page === pageNum
+                      ? "bg-primary-600 text-white border-primary-600"
+                      : "bg-white border-neutral-200 text-neutral-700 hover:bg-primary-50 hover:border-primary-300"
+                  }`}
+                >
+                  {pageNum + 1}
+                </button>
+              );
+            })}
+            
+            <button
+              onClick={() => setPage((p) => (p + 1 < totalPages ? p + 1 : p))}
+              disabled={page + 1 >= totalPages}
+              className="px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-700 disabled:opacity-50 disabled:bg-neutral-100 hover:bg-primary-50 hover:border-primary-300 transition"
+            >
+              Next
+            </button>
+          </div>
         </div>
       </div>
 
@@ -422,6 +594,7 @@ export default function NearbyAttractionManagement() {
                       value={form.attractionName}
                       onChange={(e) => setForm({ ...form, attractionName: e.target.value })}
                       placeholder="e.g. Beach, Museum, Shopping Mall"
+                      maxLength={255}
                     />
                     {errors.attractionName && <p className="text-xs text-red-500 mt-1">{errors.attractionName}</p>}
                   </div>
@@ -430,11 +603,13 @@ export default function NearbyAttractionManagement() {
                     <div>
                       <label className="text-xs text-neutral-500">Attraction Type</label>
                       <input
-                        className="w-full border border-neutral-200 px-3 py-2 rounded-lg mt-1 focus:ring-2 focus:ring-primary-500"
+                        className={`w-full border px-3 py-2 rounded-lg mt-1 focus:ring-2 focus:ring-primary-500 ${errors.attractionType ? "border-red-500" : "border-neutral-200"}`}
                         value={form.attractionType}
                         onChange={(e) => setForm({ ...form, attractionType: e.target.value })}
                         placeholder="e.g. Beach, Museum, Park"
+                        maxLength={100}
                       />
+                      {errors.attractionType && <p className="text-xs text-red-500 mt-1">{errors.attractionType}</p>}
                     </div>
 
                     <div>
@@ -445,7 +620,8 @@ export default function NearbyAttractionManagement() {
                         value={form.distance}
                         onChange={(e) => setForm({ ...form, distance: e.target.value })}
                         min={0}
-                        step="0.1"
+                        max={999.99}
+                        step="0.01"
                         placeholder="0"
                       />
                       {errors.distance && <p className="text-xs text-red-500 mt-1">{errors.distance}</p>}
@@ -455,22 +631,26 @@ export default function NearbyAttractionManagement() {
                   <div>
                     <label className="text-xs text-neutral-500">Direction</label>
                     <input
-                      className="w-full border border-neutral-200 px-3 py-2 rounded-lg mt-1 focus:ring-2 focus:ring-primary-500"
+                      className={`w-full border px-3 py-2 rounded-lg mt-1 focus:ring-2 focus:ring-primary-500 ${errors.direction ? "border-red-500" : "border-neutral-200"}`}
                       value={form.direction}
                       onChange={(e) => setForm({ ...form, direction: e.target.value })}
                       placeholder="e.g. North, 500m from hotel"
+                      maxLength={50}
                     />
+                    {errors.direction && <p className="text-xs text-red-500 mt-1">{errors.direction}</p>}
                   </div>
 
                   <div>
                     <label className="text-xs text-neutral-500">Description</label>
                     <textarea
-                      className="w-full border border-neutral-200 px-3 py-2 rounded-lg mt-1 focus:ring-2 focus:ring-primary-500"
+                      className={`w-full border px-3 py-2 rounded-lg mt-1 focus:ring-2 focus:ring-primary-500 ${errors.description ? "border-red-500" : "border-neutral-200"}`}
                       rows={3}
                       value={form.description}
                       onChange={(e) => setForm({ ...form, description: e.target.value })}
                       placeholder="Attraction description..."
+                      maxLength={500}
                     />
+                    {errors.description && <p className="text-xs text-red-500 mt-1">{errors.description}</p>}
                   </div>
 
                   <div>
@@ -481,6 +661,7 @@ export default function NearbyAttractionManagement() {
                       value={form.sortOrder}
                       onChange={(e) => setForm({ ...form, sortOrder: e.target.value })}
                       min={0}
+                      max={10000}
                       placeholder="0"
                     />
                     {errors.sortOrder && <p className="text-xs text-red-500 mt-1">{errors.sortOrder}</p>}

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import api from "../../../services/api";
 import {
   searchHotels,
@@ -38,10 +38,19 @@ export default function HotelManagement() {
   const [hotels, setHotels] = useState([]);
   const [search, setSearch] = useState("");
   const [cities, setCities] = useState([]);
+  const [statusFilter, setStatusFilter] = useState("ALL"); // ALL, "1" (Active), "0" (Inactive)
+  const [cityFilter, setCityFilter] = useState(""); // "" = All cities, or cityID
   const [page, setPage] = useState(0);
-  const [size] = useState(10);
+  const [size, setSize] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
   const [total, setTotal] = useState(0);
+
+  // Statistics
+  const [stats, setStats] = useState({
+    total: 0,
+    active: 0,
+    inactive: 0,
+  });
 
   const [openModal, setOpenModal] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -80,7 +89,13 @@ export default function HotelManagement() {
   const loadHotels = async () => {
     setLoading(true);
     try {
-      const res = await searchHotels({ page, size, keyword: search || undefined });
+      const res = await searchHotels({ 
+        page, 
+        size, 
+        keyword: search || undefined,
+        status: statusFilter !== "ALL" ? Number(statusFilter) : undefined,
+        cityID: cityFilter ? Number(cityFilter) : undefined,
+      });
       setHotels((res.items || []).map(normalizeHotel));
       setTotalPages(res.totalPages || 0);
       setTotal(res.total || 0);
@@ -89,6 +104,35 @@ export default function HotelManagement() {
       toast.error(err.message || "Failed to load hotels");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ============================
+  // LOAD STATISTICS
+  // ============================
+  const loadStats = async () => {
+    try {
+      // Load all hotels to calculate stats
+      const res = await searchHotels({
+        page: 0,
+        size: 1000, // Get all for stats
+        keyword: undefined,
+        status: undefined,
+        cityID: undefined,
+      });
+
+      const allItems = res.items || [];
+      const totalCount = allItems.length;
+      const active = allItems.filter((item) => item.status === 1).length;
+      const inactive = totalCount - active;
+
+      setStats({
+        total: totalCount,
+        active,
+        inactive,
+      });
+    } catch (err) {
+      console.error("Failed to load stats", err);
     }
   };
 
@@ -101,11 +145,22 @@ export default function HotelManagement() {
   }, []);
 
   useEffect(() => {
+    loadStats();
+  }, []);
+
+  useEffect(() => {
     const id = setTimeout(loadHotels, 400);
     return () => clearTimeout(id);
-  }, [search, page]);
+  }, [search, page, size, statusFilter, cityFilter]);
 
   // ================= MAP HELPERS =================
+  // Create city name map for display
+  const cityNameMap = useMemo(() => {
+    const map = new Map();
+    cities.forEach((c) => map.set(c.cityID, c.cityName));
+    return map;
+  }, [cities]);
+
   const toForm = (h) => ({
     hotelID: h.hotelID,
     hotelCode: h.hotelCode || "",
@@ -137,12 +192,109 @@ export default function HotelManagement() {
   // ================= VALIDATE =================
   const validate = () => {
     const e = {};
-    if (!form.hotelCode.trim()) e.hotelCode = "Hotel code required";
-    if (!form.hotelName.trim()) e.hotelName = "Hotel name required";
-    if (!form.cityID) e.cityID = "City required";
-    if (form.priceMin !== "" && Number(form.priceMin) < 0) e.priceMin = "Price must be >= 0";
-    if (form.priceMax !== "" && Number(form.priceMax) < 0) e.priceMax = "Price must be >= 0";
-    if (form.rating !== "" && (Number(form.rating) < 0 || Number(form.rating) > 5)) e.rating = "Rating must be 0-5";
+    
+    // Hotel Code: required, non-empty, max length
+    if (!form.hotelCode.trim()) {
+      e.hotelCode = "Hotel code is required";
+    } else if (form.hotelCode.trim().length > 50) {
+      e.hotelCode = "Hotel code must be 50 characters or less";
+    }
+    
+    // Hotel Name: required, non-empty, max length
+    if (!form.hotelName.trim()) {
+      e.hotelName = "Hotel name is required";
+    } else if (form.hotelName.trim().length > 200) {
+      e.hotelName = "Hotel name must be 200 characters or less";
+    }
+    
+    // City: required
+    if (!form.cityID) {
+      e.cityID = "City is required";
+    }
+    
+    // Address: max length
+    if (form.address && form.address.length > 500) {
+      e.address = "Address must be 500 characters or less";
+    }
+    
+    // Price Min: must be >= 0 if provided
+    if (form.priceMin !== "") {
+      const priceMinNum = Number(form.priceMin);
+      if (isNaN(priceMinNum) || priceMinNum < 0) {
+        e.priceMin = "Minimum price must be 0 or greater";
+      }
+    }
+    
+    // Price Max: must be >= 0 if provided, and >= priceMin if both provided
+    if (form.priceMax !== "") {
+      const priceMaxNum = Number(form.priceMax);
+      if (isNaN(priceMaxNum) || priceMaxNum < 0) {
+        e.priceMax = "Maximum price must be 0 or greater";
+      } else if (form.priceMin !== "") {
+        const priceMinNum = Number(form.priceMin);
+        if (!isNaN(priceMinNum) && priceMaxNum < priceMinNum) {
+          e.priceMax = "Maximum price must be greater than or equal to minimum price";
+        }
+      }
+    }
+    
+    // Rating: must be 0-5 if provided
+    if (form.rating !== "") {
+      const ratingNum = Number(form.rating);
+      if (isNaN(ratingNum) || ratingNum < 0 || ratingNum > 5) {
+        e.rating = "Rating must be between 0 and 5";
+      }
+    }
+    
+    // Phone Number: format validation if provided
+    if (form.phoneNumber && form.phoneNumber.trim()) {
+      const phoneRegex = /^[+]?[(]?[0-9]{1,4}[)]?[-\s.]?[(]?[0-9]{1,4}[)]?[-\s.]?[0-9]{1,9}$/;
+      if (!phoneRegex.test(form.phoneNumber.trim())) {
+        e.phoneNumber = "Please enter a valid phone number";
+      }
+    }
+    
+    // Email: format validation if provided
+    if (form.email && form.email.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(form.email.trim())) {
+        e.email = "Please enter a valid email address";
+      }
+    }
+    
+    // Number of Rooms: must be > 0 if provided
+    if (form.numberOfRooms !== "") {
+      const roomsNum = Number(form.numberOfRooms);
+      if (isNaN(roomsNum) || roomsNum <= 0 || !Number.isInteger(roomsNum)) {
+        e.numberOfRooms = "Number of rooms must be a positive integer";
+      }
+    }
+    
+    // Number of Floors: must be > 0 if provided
+    if (form.numberOfFloors !== "") {
+      const floorsNum = Number(form.numberOfFloors);
+      if (isNaN(floorsNum) || floorsNum <= 0 || !Number.isInteger(floorsNum)) {
+        e.numberOfFloors = "Number of floors must be a positive integer";
+      }
+    }
+    
+    // Year Built: must be reasonable if provided
+    if (form.yearBuilt !== "") {
+      const yearNum = Number(form.yearBuilt);
+      const currentYear = new Date().getFullYear();
+      if (isNaN(yearNum) || !Number.isInteger(yearNum) || yearNum < 1800 || yearNum > currentYear) {
+        e.yearBuilt = `Year built must be between 1800 and ${currentYear}`;
+      }
+    }
+    
+    // Status: must be 0 or 1
+    if (form.status !== "" && form.status !== null && form.status !== undefined) {
+      const statusNum = Number(form.status);
+      if (isNaN(statusNum) || (statusNum !== 0 && statusNum !== 1)) {
+        e.status = "Status must be Active (1) or Inactive (0)";
+      }
+    }
+    
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -211,6 +363,7 @@ export default function HotelManagement() {
       setEditing(null);
       setForm(emptyForm);
       loadHotels();
+      loadStats();
     } catch (err) {
       console.error("Save hotel error:", err.response?.data || err.message || err);
       toast.error(err.message || "Save failed");
@@ -233,6 +386,7 @@ export default function HotelManagement() {
       toast.success("Hotel deleted successfully");
       setDeleteConfirm({ isOpen: false, hotel: null, error: null, deleting: false });
       loadHotels();
+      loadStats();
     } catch (err) {
       console.error("Delete hotel error:", err.response?.data || err.message || err);
       
@@ -333,13 +487,90 @@ export default function HotelManagement() {
         </button>
       </div>
 
-      {/* SEARCH */}
-      <input
-        className="w-full border border-neutral-200 bg-white px-4 py-2.5 rounded-lg mb-4 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-200 focus:outline-none transition"
-        placeholder="Search hotel..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-      />
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-neutral-600 mb-1">Total Hotels</p>
+              <p className="text-2xl font-bold text-neutral-900">{stats.total}</p>
+            </div>
+            <div className="p-3 bg-primary-100 rounded-lg">
+              <svg className="h-6 w-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-neutral-600 mb-1">Active Hotels</p>
+              <p className="text-2xl font-bold text-green-600">{stats.active}</p>
+            </div>
+            <div className="p-3 bg-green-100 rounded-lg">
+              <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-neutral-600 mb-1">Inactive Hotels</p>
+              <p className="text-2xl font-bold text-red-600">{stats.inactive}</p>
+            </div>
+            <div className="p-3 bg-red-100 rounded-lg">
+              <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Search and Filter */}
+      <div className="flex gap-3 mb-4 flex-wrap">
+        <input
+          className="flex-1 min-w-[200px] border border-neutral-200 bg-white px-4 py-2.5 rounded-lg text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-200 focus:outline-none transition"
+          placeholder="Search hotel by name, code, or address..."
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(0);
+          }}
+        />
+        <select
+          value={cityFilter}
+          onChange={(e) => {
+            setCityFilter(e.target.value);
+            setPage(0);
+          }}
+          className="rounded-lg border border-neutral-200 bg-white px-4 py-2.5 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-200 focus:outline-none transition min-w-[180px]"
+        >
+          <option value="">All Cities</option>
+          {cities.map((c) => (
+            <option key={c.cityID} value={c.cityID}>
+              {c.cityName}
+            </option>
+          ))}
+        </select>
+        <select
+          value={statusFilter}
+          onChange={(e) => {
+            setStatusFilter(e.target.value);
+            setPage(0);
+          }}
+          className="rounded-lg border border-neutral-200 bg-white px-4 py-2.5 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-200 focus:outline-none transition min-w-[150px]"
+        >
+          <option value="ALL">All Status</option>
+          <option value="1">Active</option>
+          <option value="0">Inactive</option>
+        </select>
+      </div>
 
       {loading && <p className="text-sm text-neutral-600 mb-2 font-medium">Loading...</p>}
 
@@ -370,7 +601,7 @@ export default function HotelManagement() {
                 <tr key={h.hotelID} className="border-b border-neutral-100 hover:bg-primary-50/30 transition">
                   <td className="px-4 py-2">{h.hotelCode}</td>
                   <td className="px-4 py-2 font-medium">{h.hotelName}</td>
-                  <td className="px-4 py-2">{h.cityName || h.cityID}</td>
+                  <td className="px-4 py-2">{cityNameMap.get(h.cityID) || h.cityName || (h.cityID ? `City ID: ${h.cityID}` : "-")}</td>
                   <td className="px-4 py-2">
                     {h.priceMin && h.priceMax 
                       ? `$${h.priceMin} - $${h.priceMax}`
@@ -428,25 +659,104 @@ export default function HotelManagement() {
       </div>
 
       {/* PAGINATION */}
-      <div className="flex items-center justify-between mt-4 text-sm">
-        <div className="text-neutral-600">
-          Page {page + 1} / {Math.max(totalPages, 1)} • Total {total}
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setPage((p) => Math.max(p - 1, 0))}
-            disabled={page <= 0}
-            className="px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-700 disabled:opacity-50 disabled:bg-neutral-100 hover:bg-primary-50 hover:border-primary-300 transition"
+      <div className="flex items-center justify-between mt-4 flex-wrap gap-4">
+        {/* Showing info */}
+        <p className="text-sm text-neutral-600 font-medium">
+          {total === 0
+            ? "No hotels"
+            : `Showing ${page * size + 1}–${Math.min((page + 1) * size, total)} of ${total} hotels`}
+        </p>
+
+        <div className="flex items-center gap-4">
+          {/* Page size selector */}
+          <select
+            value={size}
+            onChange={(e) => {
+              setSize(Number(e.target.value));
+              setPage(0);
+            }}
+            className="border border-neutral-200 bg-white px-3 py-1.5 rounded-lg text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-200 focus:outline-none"
           >
-            Prev
-          </button>
-          <button
-            onClick={() => setPage((p) => (p + 1 < totalPages ? p + 1 : p))}
-            disabled={page + 1 >= totalPages}
-            className="px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-700 disabled:opacity-50 disabled:bg-neutral-100 hover:bg-primary-50 hover:border-primary-300 transition"
-          >
-            Next
-          </button>
+            <option value={5}>5 per page</option>
+            <option value={10}>10 per page</option>
+            <option value={20}>20 per page</option>
+            <option value={50}>50 per page</option>
+          </select>
+
+          {/* Page navigation */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(p - 1, 0))}
+              disabled={page <= 0}
+              className="px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-700 disabled:opacity-50 disabled:bg-neutral-100 hover:bg-primary-50 hover:border-primary-300 transition"
+            >
+              Prev
+            </button>
+            
+            {/* Page numbers */}
+            {totalPages > 0 && (() => {
+              const pages = [];
+              const maxVisible = 7;
+              
+              if (totalPages <= maxVisible) {
+                for (let i = 0; i < totalPages; i++) {
+                  pages.push(i);
+                }
+              } else {
+                pages.push(0);
+                if (page <= 3) {
+                  for (let i = 1; i <= 4; i++) {
+                    pages.push(i);
+                  }
+                  pages.push('...');
+                  pages.push(totalPages - 1);
+                } else if (page >= totalPages - 4) {
+                  pages.push('...');
+                  for (let i = totalPages - 5; i < totalPages; i++) {
+                    pages.push(i);
+                  }
+                } else {
+                  pages.push('...');
+                  for (let i = page - 1; i <= page + 1; i++) {
+                    pages.push(i);
+                  }
+                  pages.push('...');
+                  pages.push(totalPages - 1);
+                }
+              }
+              
+              return pages.map((pageNum, idx) => {
+                if (pageNum === '...') {
+                  return (
+                    <span key={`ellipsis-${idx}`} className="px-2 text-neutral-400">
+                      ...
+                    </span>
+                  );
+                }
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setPage(pageNum)}
+                    className={`px-3 py-1.5 rounded-lg border transition ${
+                      page === pageNum
+                        ? "bg-primary-600 text-white border-primary-600"
+                        : "bg-white border-neutral-200 text-neutral-700 hover:bg-primary-50 hover:border-primary-300"
+                    }`}
+                  >
+                    {pageNum + 1}
+                  </button>
+                );
+              });
+            })()}
+            
+            <button
+              onClick={() => setPage((p) => (p + 1 < totalPages ? p + 1 : p))}
+              disabled={page + 1 >= totalPages}
+              className="px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-700 disabled:opacity-50 disabled:bg-neutral-100 hover:bg-primary-50 hover:border-primary-300 transition"
+            >
+              Next
+            </button>
+          </div>
         </div>
       </div>
 

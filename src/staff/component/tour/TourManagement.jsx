@@ -53,8 +53,15 @@ export default function TourManagement() {
   const [statusFilter, setStatusFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
 
+  // Statistics
+  const [stats, setStats] = useState({
+    total: 0,
+    active: 0,
+    inactive: 0,
+  });
+
   const [page, setPage] = useState(0);
-  const [size] = useState(10);
+  const [size, setSize] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
   const [total, setTotal] = useState(0);
 
@@ -143,15 +150,45 @@ export default function TourManagement() {
     }
   };
 
+  // ============================
+  // LOAD STATISTICS
+  // ============================
+  const loadStats = async () => {
+    try {
+      // Load all tours to calculate stats
+      const res = await searchTours({
+        page: 0,
+        size: 1000, // Get all for stats
+        keyword: undefined,
+        status: undefined,
+        categoryId: undefined,
+      });
+
+      const allItems = res.items || [];
+      const totalCount = allItems.length;
+      const active = allItems.filter((item) => item.status === 1).length;
+      const inactive = totalCount - active;
+
+      setStats({
+        total: totalCount,
+        active,
+        inactive,
+      });
+    } catch (err) {
+      console.error("Failed to load stats", err);
+    }
+  };
+
   useEffect(() => {
     loadTours();
     getAllTourCategories().then(setCategories);
+    loadStats();
   }, []);
 
   useEffect(() => {
     const t = setTimeout(loadTours, 400);
     return () => clearTimeout(t);
-  }, [search, page]);
+  }, [search, page, size, statusFilter, categoryFilter]);
 
   const toForm = (t) => {
     // Khi edit, nếu tourCode có prefix TOUR-, chỉ lấy phần sau
@@ -298,6 +335,7 @@ export default function TourManagement() {
       setTourCities([]);
       setTourDetails([]);
       loadTours();
+      loadStats();
     } catch (err) {
       const status = err?.response?.status;
       const backendMsg = err?.response?.data?.message;
@@ -336,6 +374,7 @@ export default function TourManagement() {
       toast.success("Tour deleted successfully");
       setDeleteConfirm({ isOpen: false, tour: null, error: null, deleting: false });
       loadTours();
+      loadStats();
     } catch (err) {
       // Get error message from response
       let backendMsg = "";
@@ -471,6 +510,51 @@ export default function TourManagement() {
         </button>
       </div>
 
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-neutral-600 mb-1">Total Tours</p>
+              <p className="text-2xl font-bold text-neutral-900">{stats.total}</p>
+            </div>
+            <div className="p-3 bg-primary-100 rounded-lg">
+              <svg className="h-6 w-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-neutral-600 mb-1">Active Tours</p>
+              <p className="text-2xl font-bold text-green-600">{stats.active}</p>
+            </div>
+            <div className="p-3 bg-green-100 rounded-lg">
+              <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-neutral-600 mb-1">Inactive Tours</p>
+              <p className="text-2xl font-bold text-red-600">{stats.inactive}</p>
+            </div>
+            <div className="p-3 bg-red-100 rounded-lg">
+              <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <TourFilters
         search={search}
         statusFilter={statusFilter}
@@ -533,25 +617,110 @@ export default function TourManagement() {
       />
 
       {/* PAGINATION */}
-      <div className="flex items-center justify-between mt-4 text-sm">
-        <div className="text-neutral-600">
-          Page {page + 1} / {Math.max(totalPages, 1)} • Total {total}
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setPage((p) => Math.max(p - 1, 0))}
-            disabled={page <= 0}
-            className="px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-700 disabled:opacity-50 disabled:bg-neutral-100 hover:bg-primary-50 hover:border-primary-300 transition"
+      <div className="flex items-center justify-between mt-4 flex-wrap gap-4">
+        {/* Showing info */}
+        <p className="text-sm text-neutral-600 font-medium">
+          {total === 0
+            ? "No tours"
+            : `Showing ${page * size + 1}–${Math.min((page + 1) * size, total)} of ${total} tours`}
+        </p>
+
+        <div className="flex items-center gap-4">
+          {/* Page size selector */}
+          <select
+            value={size}
+            onChange={(e) => {
+              setSize(Number(e.target.value));
+              setPage(0);
+            }}
+            className="border border-neutral-200 bg-white px-3 py-1.5 rounded-lg text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-200 focus:outline-none"
           >
-            Prev
-          </button>
-          <button
-            onClick={() => setPage((p) => (p + 1 < totalPages ? p + 1 : p))}
-            disabled={page + 1 >= totalPages}
-            className="px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-700 disabled:opacity-50 disabled:bg-neutral-100 hover:bg-primary-50 hover:border-primary-300 transition"
-          >
-            Next
-          </button>
+            <option value={5}>5 per page</option>
+            <option value={10}>10 per page</option>
+            <option value={20}>20 per page</option>
+            <option value={50}>50 per page</option>
+          </select>
+
+          {/* Page navigation */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(p - 1, 0))}
+              disabled={page <= 0}
+              className="px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-700 disabled:opacity-50 disabled:bg-neutral-100 hover:bg-primary-50 hover:border-primary-300 transition"
+            >
+              Prev
+            </button>
+            
+            {/* Page numbers */}
+            {totalPages > 0 && (() => {
+              const pages = [];
+              const maxVisible = 7;
+              
+              if (totalPages <= maxVisible) {
+                // Show all pages if total is small
+                for (let i = 0; i < totalPages; i++) {
+                  pages.push(i);
+                }
+              } else {
+                // Always show first page
+                pages.push(0);
+                
+                if (page <= 3) {
+                  // Near the start: 0 1 2 3 4 ... last
+                  for (let i = 1; i <= 4; i++) {
+                    pages.push(i);
+                  }
+                  pages.push('...');
+                  pages.push(totalPages - 1);
+                } else if (page >= totalPages - 4) {
+                  // Near the end: 0 ... last-4 last-3 last-2 last-1 last
+                  pages.push('...');
+                  for (let i = totalPages - 5; i < totalPages; i++) {
+                    pages.push(i);
+                  }
+                } else {
+                  // In the middle: 0 ... current-1 current current+1 ... last
+                  pages.push('...');
+                  for (let i = page - 1; i <= page + 1; i++) {
+                    pages.push(i);
+                  }
+                  pages.push('...');
+                  pages.push(totalPages - 1);
+                }
+              }
+              
+              return pages.map((pageNum, idx) => {
+                if (pageNum === '...') {
+                  return (
+                    <span key={`ellipsis-${idx}`} className="px-2 text-neutral-400">
+                      ...
+                    </span>
+                  );
+                }
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setPage(pageNum)}
+                    className={`px-3 py-1.5 rounded-lg border transition ${
+                      page === pageNum
+                        ? "bg-primary-600 text-white border-primary-600"
+                        : "bg-white border-neutral-200 text-neutral-700 hover:bg-primary-50 hover:border-primary-300"
+                    }`}
+                  >
+                    {pageNum + 1}
+                  </button>
+                );
+              });
+            })()}
+            
+            <button
+              onClick={() => setPage((p) => (p + 1 < totalPages ? p + 1 : p))}
+              disabled={page + 1 >= totalPages}
+              className="px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-700 disabled:opacity-50 disabled:bg-neutral-100 hover:bg-primary-50 hover:border-primary-300 transition"
+            >
+              Next
+            </button>
+          </div>
         </div>
       </div>
 

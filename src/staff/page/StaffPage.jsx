@@ -19,7 +19,7 @@ import NearbyAttractionManagement from "../component/hotels/NearbyAttractionMana
 import FlightManagement from "../component/flight/FlightManagement";
 import StaffCarBookingManagement from "../component/car/StaffCarBookingManagement";
 
-
+import ReviewManagement from "../component/review/ReviewManagement";
 
 export default function StaffPage() {
     const [activeTab, setActiveTab] = useState("dashboard");
@@ -61,7 +61,9 @@ export default function StaffPage() {
             case "profile":
                 return <StaffProfile />;
             case "carBookings":
-                return <StaffCarBookingManagement  />;
+                return <StaffCarBookingManagement />;
+            case "reviews":
+                return <ReviewManagement />;
             default:
                 return <Dashboard />;
         }

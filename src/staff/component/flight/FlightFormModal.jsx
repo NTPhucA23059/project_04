@@ -86,6 +86,7 @@ export default function FlightFormModal({
                         onChange({ ...form, flightCode: e.target.value })
                       }
                       placeholder="e.g. VN123"
+                      maxLength={50}
                     />
                     {errors.flightCode && (
                       <p className="text-xs text-red-500 mt-1">
@@ -106,6 +107,7 @@ export default function FlightFormModal({
                       onChange({ ...form, airline: e.target.value })
                     }
                     placeholder="e.g. Vietnam Airlines"
+                    maxLength={200}
                   />
                   {errors.airline && (
                     <p className="text-xs text-red-500 mt-1">
@@ -243,6 +245,7 @@ export default function FlightFormModal({
                         })
                       }
                       min={0}
+                      max={1440}
                     />
                     {errors.durationMinutes && (
                       <p className="text-xs text-red-500 mt-1">
@@ -275,13 +278,21 @@ export default function FlightFormModal({
                 <div>
                   <label className="text-xs text-neutral-500">Flight Type</label>
                   <input
-                    className="w-full border border-neutral-200 px-3 py-2 rounded-lg mt-1 focus:ring-2 focus:ring-primary-500"
+                    className={`w-full border px-3 py-2 rounded-lg mt-1 focus:ring-2 focus:ring-primary-500 ${
+                      errors.flightType ? "border-red-500" : "border-neutral-200"
+                    }`}
                     value={form.flightType}
                     onChange={(e) =>
                       onChange({ ...form, flightType: e.target.value })
                     }
                     placeholder="e.g. Economy, Business"
+                    maxLength={100}
                   />
+                  {errors.flightType && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {errors.flightType}
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -313,14 +324,22 @@ export default function FlightFormModal({
               Schedule notes
             </p>
             <textarea
-              className="w-full border border-neutral-200 px-3 py-2 rounded-lg mt-1 focus:ring-2 focus:ring-primary-500"
+              className={`w-full border px-3 py-2 rounded-lg mt-1 focus:ring-2 focus:ring-primary-500 ${
+                errors.scheduleInfo ? "border-red-500" : "border-neutral-200"
+              }`}
               rows={4}
               value={form.scheduleInfo}
               onChange={(e) =>
                 onChange({ ...form, scheduleInfo: e.target.value })
               }
               placeholder="Notes about flight schedule, stops, etc."
+              maxLength={500}
             />
+            {errors.scheduleInfo && (
+              <p className="text-xs text-red-500 mt-1">
+                {errors.scheduleInfo}
+              </p>
+            )}
           </div>
 
           <div className="bg-white border rounded-xl p-4 shadow-sm">
@@ -373,7 +392,9 @@ export default function FlightFormModal({
                 </label>
                 <input
                   type="text"
-                  className="w-full border border-neutral-200 px-3 py-2 rounded-lg text-sm focus:ring-2 focus:ring-primary-500"
+                  className={`w-full border px-3 py-2 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 ${
+                    errors.imageURL ? "border-red-500" : "border-neutral-200"
+                  }`}
                   value={form.imageURL}
                   onChange={(e) => {
                     onChange({ ...form, imageURL: e.target.value });
@@ -382,7 +403,13 @@ export default function FlightFormModal({
                     }
                   }}
                   placeholder="E.g: /uploads/flights/image.jpg or https://..."
+                  maxLength={500}
                 />
+                {errors.imageURL && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {errors.imageURL}
+                  </p>
+                )}
               </div>
             </div>
           </div>

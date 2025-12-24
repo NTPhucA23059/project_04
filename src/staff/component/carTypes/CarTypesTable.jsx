@@ -10,6 +10,8 @@ export default function CarTypesTable({
   total,
   startIndex,
   endIndex,
+  pageSize,
+  onPageSizeChange,
 }) {
   return (
     <>
@@ -64,31 +66,84 @@ export default function CarTypesTable({
       </div>
 
       {/* Pagination */}
-      <div className="mt-4 flex justify-between items-center text-sm">
+      <div className="mt-4 flex justify-between items-center flex-wrap gap-4 text-sm">
         <p className="text-neutral-600 font-medium">
           Showing {total === 0 ? 0 : startIndex + 1}–{endIndex} of {total}
         </p>
 
-        <div className="flex items-center gap-2">
-          <button
-            disabled={page <= 1}
-            onClick={() => onChangePage("prev")}
-            className="px-3 py-1.5 border border-neutral-200 rounded-lg transition disabled:bg-neutral-100 disabled:text-neutral-400 disabled:cursor-not-allowed hover:bg-primary-50 hover:border-primary-300"
+        <div className="flex items-center gap-4">
+          {/* Page size selector */}
+          <select
+            value={pageSize || 5}
+            onChange={(e) => {
+              if (onPageSizeChange) {
+                onPageSizeChange(Number(e.target.value));
+              }
+            }}
+            className="border border-neutral-200 bg-white px-3 py-1.5 rounded-lg text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-200 focus:outline-none"
           >
-            Prev
-          </button>
+            <option value={5}>5 per page</option>
+            <option value={10}>10 per page</option>
+            <option value={20}>20 per page</option>
+            <option value={50}>50 per page</option>
+          </select>
 
-          <span className="px-3 py-1.5 text-neutral-700 font-medium">
-            Page {page} / {totalPages}
-          </span>
+          <div className="flex items-center gap-2">
+            <button
+              disabled={page <= 1}
+              onClick={() => onChangePage("prev")}
+              className="px-3 py-1.5 border border-neutral-200 rounded-lg transition disabled:bg-neutral-100 disabled:text-neutral-400 disabled:cursor-not-allowed hover:bg-primary-50 hover:border-primary-300"
+            >
+              Prev
+            </button>
 
-          <button
-            disabled={page >= totalPages}
-            onClick={() => onChangePage("next")}
-            className="px-3 py-1.5 border border-neutral-200 rounded-lg transition disabled:bg-neutral-100 disabled:text-neutral-400 disabled:cursor-not-allowed hover:bg-primary-50 hover:border-primary-300"
-          >
-            Next
-          </button>
+            {/* Page numbers */}
+            {totalPages > 0 && [...Array(Math.min(totalPages, 5))].map((_, i) => {
+              let pageNum;
+              if (totalPages <= 5) {
+                pageNum = i + 1;
+              } else if (page <= 2) {
+                pageNum = i + 1;
+              } else if (page >= totalPages - 2) {
+                pageNum = totalPages - 4 + i;
+              } else {
+                pageNum = page - 2 + i;
+              }
+              
+              return (
+                <button
+                  key={i}
+                  onClick={() => {
+                    if (onChangePage) {
+                      const dir = pageNum < page ? "prev" : pageNum > page ? "next" : null;
+                      if (dir) {
+                        let newPage = page;
+                        while (newPage !== pageNum) {
+                          newPage = dir === "prev" ? newPage - 1 : newPage + 1;
+                        }
+                        onChangePage(dir);
+                      }
+                    }
+                  }}
+                  className={`px-3 py-1.5 rounded-lg border transition ${
+                    page === pageNum
+                      ? "bg-primary-600 text-white border-primary-600"
+                      : "bg-white border-neutral-200 text-neutral-700 hover:bg-primary-50 hover:border-primary-300"
+                  }`}
+                >
+                  {pageNum}
+                </button>
+              );
+            })}
+
+            <button
+              disabled={page >= totalPages}
+              onClick={() => onChangePage("next")}
+              className="px-3 py-1.5 border border-neutral-200 rounded-lg transition disabled:bg-neutral-100 disabled:text-neutral-400 disabled:cursor-not-allowed hover:bg-primary-50 hover:border-primary-300"
+            >
+              Next
+            </button>
+          </div>
         </div>
       </div>
     </>

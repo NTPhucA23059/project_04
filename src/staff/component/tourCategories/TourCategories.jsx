@@ -12,6 +12,7 @@ import ConfirmDialog from "../../shared/confirm/ConfirmDialog";
 export default function TourCategories() {
   const [categories, setCategories] = useState([]);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL"); // ALL, "1" (Active), "0" (Inactive)
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
@@ -19,6 +20,13 @@ export default function TourCategories() {
   const [error, setError] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, category: null, error: null, deleting: false });
   const [categoryUsageInfo, setCategoryUsageInfo] = useState({}); // { categoryID: tourCount }
+
+  // Statistics
+  const [stats, setStats] = useState({
+    total: 0,
+    active: 0,
+    inactive: 0,
+  });
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -37,6 +45,7 @@ export default function TourCategories() {
         page: currentPage - 1, // backend is 0-based
         size: pageSize,
         keyword: search.trim() || undefined,
+        status: statusFilter !== "ALL" ? statusFilter : undefined,
       });
 
       const items =
@@ -60,15 +69,47 @@ export default function TourCategories() {
   };
 
   // ============================
-  // RESET PAGE WHEN SEARCH CHANGES
+  // LOAD STATISTICS
+  // ============================
+  const loadStats = async () => {
+    try {
+      // Load all categories to calculate stats
+      const res = await searchTourCategories({
+        page: 0,
+        size: 1000, // Get all for stats
+        keyword: undefined,
+        status: undefined,
+      });
+
+      const allItems = res.items || [];
+      const total = allItems.length;
+      const active = allItems.filter((item) => item.status === 1).length;
+      const inactive = total - active;
+
+      setStats({
+        total,
+        active,
+        inactive,
+      });
+    } catch (err) {
+      console.error("Failed to load stats", err);
+    }
+  };
+
+  // ============================
+  // RESET PAGE WHEN SEARCH/FILTER CHANGES
   // ============================
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, pageSize]);
+  }, [search, pageSize, statusFilter]);
 
   useEffect(() => {
     loadData();
-  }, [search, pageSize, currentPage]);
+  }, [search, pageSize, currentPage, statusFilter]);
+
+  useEffect(() => {
+    loadStats();
+  }, []);
 
   useEffect(() => {
     if (totalPages > 0 && currentPage > totalPages) {
@@ -111,6 +152,7 @@ export default function TourCategories() {
       toast.success("Category deleted successfully");
       setDeleteConfirm({ isOpen: false, category: null, error: null, deleting: false });
       loadData();
+      loadStats();
     } catch (err) {
       // Get error message from response
       let backendMsg = "";
@@ -174,6 +216,7 @@ export default function TourCategories() {
       setModalOpen(false);
       setEditingItem(null);
       loadData();
+      loadStats();
     } catch (err) {
       console.error(err);
       
@@ -228,15 +271,69 @@ export default function TourCategories() {
         </button>
       </div>
 
-      {/* Search */}
-      <div className="mb-4">
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-neutral-600 mb-1">Total Categories</p>
+              <p className="text-2xl font-bold text-neutral-900">{stats.total}</p>
+            </div>
+            <div className="p-3 bg-primary-100 rounded-lg">
+              <svg className="h-6 w-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-neutral-600 mb-1">Active Categories</p>
+              <p className="text-2xl font-bold text-green-600">{stats.active}</p>
+            </div>
+            <div className="p-3 bg-green-100 rounded-lg">
+              <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-neutral-600 mb-1">Inactive Categories</p>
+              <p className="text-2xl font-bold text-red-600">{stats.inactive}</p>
+            </div>
+            <div className="p-3 bg-red-100 rounded-lg">
+              <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Search and Filter */}
+      <div className="mb-4 flex gap-3">
         <input
           type="text"
           placeholder="Search categories..."
-          className="w-full rounded-lg border border-neutral-200 bg-white px-4 py-2.5 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-200 focus:outline-none transition"
+          className="flex-1 rounded-lg border border-neutral-200 bg-white px-4 py-2.5 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-200 focus:outline-none transition"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="rounded-lg border border-neutral-200 bg-white px-4 py-2.5 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-200 focus:outline-none transition"
+        >
+          <option value="ALL">All Status</option>
+          <option value="1">Active</option>
+          <option value="0">Inactive</option>
+        </select>
       </div>
 
       {/* Table */}
@@ -350,19 +447,65 @@ export default function TourCategories() {
           </button>
 
           {/* Page numbers */}
-          {totalPages > 0 &&
-            [...Array(totalPages)].map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setCurrentPage(i + 1)}
-                className={`px-3 py-1.5 rounded-lg border transition ${currentPage === i + 1
-                    ? "bg-primary-600 text-white border-primary-600 shadow-sm"
-                    : "bg-white border-neutral-200 text-neutral-700 hover:bg-primary-50 hover:border-primary-300"
-                  }`}
-              >
-                {i + 1}
-              </button>
-            ))}
+          {totalPages > 0 && (() => {
+            const pages = [];
+            const maxVisible = 7;
+            
+            if (totalPages <= maxVisible) {
+              // Show all pages if total is small
+              for (let i = 1; i <= totalPages; i++) {
+                pages.push(i);
+              }
+            } else {
+              // Always show first page
+              pages.push(1);
+              
+              if (currentPage <= 4) {
+                // Near the start: 1 2 3 4 5 ... last
+                for (let i = 2; i <= 5; i++) {
+                  pages.push(i);
+                }
+                pages.push('...');
+                pages.push(totalPages);
+              } else if (currentPage >= totalPages - 3) {
+                // Near the end: 1 ... last-4 last-3 last-2 last-1 last
+                pages.push('...');
+                for (let i = totalPages - 4; i <= totalPages; i++) {
+                  pages.push(i);
+                }
+              } else {
+                // In the middle: 1 ... current-1 current current+1 ... last
+                pages.push('...');
+                for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+                  pages.push(i);
+                }
+                pages.push('...');
+                pages.push(totalPages);
+              }
+            }
+            
+            return pages.map((page, idx) => {
+              if (page === '...') {
+                return (
+                  <span key={`ellipsis-${idx}`} className="px-2 text-neutral-400">
+                    ...
+                  </span>
+                );
+              }
+              return (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`px-3 py-1.5 rounded-lg border transition ${currentPage === page
+                      ? "bg-primary-600 text-white border-primary-600 shadow-sm"
+                      : "bg-white border-neutral-200 text-neutral-700 hover:bg-primary-50 hover:border-primary-300"
+                    }`}
+                >
+                  {page}
+                </button>
+              );
+            });
+          })()}
 
           {/* Next */}
           <button

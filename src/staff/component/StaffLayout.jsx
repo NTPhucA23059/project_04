@@ -9,6 +9,14 @@ export default function StaffLayout({ children, activeTab, setActiveTab }) {
 
   return (
     <>
+      {/* Mobile Sidebar Backdrop */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-30 lg:hidden transition-opacity duration-300"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+      
       <div className="flex min-h-screen bg-neutral-50">
         {/* Sidebar */}
         <StaffSidebar
@@ -33,12 +41,15 @@ export default function StaffLayout({ children, activeTab, setActiveTab }) {
               {children}
             </div>
           </main>
+          
+          {/* Footer */}
+          <div className="w-full transition-all duration-300 relative z-10">
+            <StaffFooter />
+          </div>
+          
           <GlobalToast />
         </div>
       </div>
-
-      {/* Footer */}
-      <StaffFooter />
 
       {/* Mobile Sidebar Toggle */}
       <button

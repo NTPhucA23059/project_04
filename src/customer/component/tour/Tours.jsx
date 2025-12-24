@@ -124,11 +124,6 @@ const toAbsoluteUrl = (url) => {
         load();
     }, [page, filters.destination, filters.category]);
 
-    // ---------------------------------------
-    // FILTER LOGIC (client side for startDate/duration/season/budget/rating)
-    // Note: Server-side pagination is used for destination and category
-    // Client-side filters are applied after receiving data
-    // ---------------------------------------
     const filteredTours = useMemo(() => {
         return tours.filter((tour) => {
             // DURATION - parse from "X days Y nights" format
@@ -151,14 +146,10 @@ const toAbsoluteUrl = (url) => {
                 }
             }
 
-            // RATING - skip for now as reviews are not loaded in list
-            // if (filters.rating) { ... }
-
             return true;
         });
     }, [tours, filters]);
 
-    // Current tours to display (already paginated from server, but may be filtered)
     const currentTours = filteredTours;
 
     const goToPage = (p) => {
@@ -168,7 +159,6 @@ const toAbsoluteUrl = (url) => {
         }
     };
 
-    // Reset to page 1 when filters change
     useEffect(() => {
         setPage(1);
     }, [filters.destination, filters.category]);
@@ -241,14 +231,13 @@ const toAbsoluteUrl = (url) => {
                                 onClick={() => goToPage(page - 1)}
                                 className={`px-4 py-2 rounded-lg border text-sm font-medium transition
                                     ${page === 1 
-                                        ? "opacity-40 cursor-not-allowed bg-gray-100" 
-                                        : "hover:bg-gray-100 border-gray-300"
+                                        ? "opacity-40 cursor-not-allowed bg-primary-100" 
+                                        : "hover:bg-primary-100 border-primary-300"
                                     }`}
                             >
                                 Previous
                             </button>
 
-                            {/* Page numbers - show max 7 pages */}
                             {(() => {
                                 const maxVisible = 7;
                                 let startPage = Math.max(1, page - Math.floor(maxVisible / 2));
@@ -263,7 +252,7 @@ const toAbsoluteUrl = (url) => {
                                         <button
                                             key={1}
                                             onClick={() => goToPage(1)}
-                                            className="px-3 py-2 rounded-lg border text-sm hover:bg-gray-100"
+                                            className="px-3 py-2 rounded-lg border text-sm hover:bg-primary-100"
                                         >
                                             1
                                         </button>
@@ -280,8 +269,8 @@ const toAbsoluteUrl = (url) => {
                                             onClick={() => goToPage(num)}
                                             className={`px-3 py-2 rounded-lg border text-sm font-medium transition
                                                 ${page === num
-                                                    ? "bg-gray-800 text-white border-gray-800"
-                                                    : "hover:bg-gray-100 border-gray-300"
+                                                    ? "bg-primary-400 text-white border-primary-400"
+                                                    : "hover:bg-primary-100 border-primary-300"
                                                 }`}
                                         >
                                             {num}
@@ -297,7 +286,7 @@ const toAbsoluteUrl = (url) => {
                                         <button
                                             key={totalPages}
                                             onClick={() => goToPage(totalPages)}
-                                            className="px-3 py-2 rounded-lg border text-sm hover:bg-gray-100"
+                                            className="px-3 py-2 rounded-lg border text-sm hover:bg-primary-100"
                                         >
                                             {totalPages}
                                         </button>
@@ -312,8 +301,8 @@ const toAbsoluteUrl = (url) => {
                                 onClick={() => goToPage(page + 1)}
                                 className={`px-4 py-2 rounded-lg border text-sm font-medium transition
                                     ${page === totalPages 
-                                        ? "opacity-40 cursor-not-allowed bg-gray-100" 
-                                        : "hover:bg-gray-100 border-gray-300"
+                                        ? "opacity-40 cursor-not-allowed bg-primary-100" 
+                                        : "hover:bg-primary-100 border-primary-300"
                                     }`}
                             >
                                 Next

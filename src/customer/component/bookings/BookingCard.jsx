@@ -2,7 +2,8 @@ import { Link } from "react-router-dom";
 import StatusBadge from "./StatusBadge";
 import { CalendarIcon, CreditCardIcon, MapPinIcon, CheckCircleIcon } from "@heroicons/react/24/outline";
 import api from "../../../services/api";
-
+import TourReview from "./TourReview";
+import { submitTourReview } from "../../../services/customer/reviewService";
 // Convert relative URL to absolute URL
 const toAbsoluteUrl = (url) => {
     if (!url) return "";
@@ -117,7 +118,7 @@ export default function BookingCard({ booking, status }) {
                         <div>
                             <span className="text-gray-500">Guests:</span>{" "}
                             <span className="font-medium">
-                                {booking.CapacityAdult + booking.CapacityKid + booking.CapacityBaby} 
+                                {booking.CapacityAdult + booking.CapacityKid + booking.CapacityBaby}
                                 {" "}({booking.CapacityAdult} Adult{booking.CapacityAdult !== 1 ? "s" : ""}
                                 {booking.CapacityKid > 0 && `, ${booking.CapacityKid} Child${booking.CapacityKid !== 1 ? "ren" : ""}`}
                                 {booking.CapacityBaby > 0 && `, ${booking.CapacityBaby} Infant${booking.CapacityBaby !== 1 ? "s" : ""}`})
@@ -149,7 +150,7 @@ export default function BookingCard({ booking, status }) {
                             <p className="text-blue-700 text-sm flex items-center gap-2">
                                 <CalendarIcon className="w-4 h-4" />
                                 <span>
-                                    <strong>Departure in {daysUntilDeparture} day{daysUntilDeparture !== 1 ? "s" : ""}!</strong> 
+                                    <strong>Departure in {daysUntilDeparture} day{daysUntilDeparture !== 1 ? "s" : ""}!</strong>
                                     {" "}Get ready for your amazing journey.
                                 </span>
                             </p>
@@ -198,7 +199,7 @@ export default function BookingCard({ booking, status }) {
 
             {/* Actions */}
             <div className="flex justify-end gap-4 px-6 pb-6 mt-2">
-                    {/* Only show "Pay Now" if Pending Processing + not expired */}
+                {/* Only show "Pay Now" if Pending Processing + not expired */}
                 {status === "Pending Processing" && (
                     <Link
                         to="/payment"
@@ -218,6 +219,14 @@ export default function BookingCard({ booking, status }) {
                     View Details
                 </Link>
             </div>
+            {status === "Confirmed" && (
+                <div className="px-6 pb-6">
+                    <TourReview
+                        bookingID={booking.BookingID}
+                        onSubmit={submitTourReview}
+                    />
+                </div>
+            )}
         </div>
     );
 }

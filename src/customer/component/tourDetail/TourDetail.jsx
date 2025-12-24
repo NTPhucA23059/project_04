@@ -22,12 +22,10 @@ export default function TourDetail({ tour, details, allDetails = [], images, cat
         }
     }, [details?.TourDetailID]);
     
-    // Tìm detail được chọn từ allDetails, fallback về details nếu không tìm thấy
     const selectedDetail = allDetails.length > 0 
         ? (allDetails.find(d => d.TourDetailID === selectedDetailId) || allDetails[0] || details)
         : details;
     
-    // Cập nhật season từ selectedDetail
     const currentSeason = selectedDetail?.SeasonID
         ? {
             SeasonID: selectedDetail.SeasonID,
@@ -41,9 +39,6 @@ export default function TourDetail({ tour, details, allDetails = [], images, cat
     const safeReviews = reviews || [];
 
     const [selectedImage, setSelectedImage] = useState(tour?.TourImg);
-    // useEffect(() => {
-    //     setSelectedImage(tour?.TourImg);
-    // }, [tour]);
     const avgRating = safeReviews.length
         ? (
             safeReviews.reduce((sum, r) => sum + r.Rating, 0) / safeReviews.length
@@ -51,15 +46,12 @@ export default function TourDetail({ tour, details, allDetails = [], images, cat
         : "0.0";
 
     const unitPrice = selectedDetail?.UnitPrice ?? 0;
-
-    // Format price to USD
     const formatUSD = (value) =>
         value?.toLocaleString("en-US", {
             style: "currency",
             currency: "USD",
             minimumFractionDigits: 0,
         }) || "$0";
-    // ===== BOOKING RULE: must book 24h before departure =====
     const canBook = (() => {
         if (!selectedDetail?.DepartureDate) return false;
 
@@ -71,8 +63,6 @@ export default function TourDetail({ tour, details, allDetails = [], images, cat
 
         return diffHours >= 24;
     })();
-
-    // Handler khi chọn detail khác
     const handleDetailChange = (detailId) => {
         setSelectedDetailId(Number(detailId));
     };

@@ -11,6 +11,7 @@ import { toast } from "../../shared/toast/toast";
 
 export default function CarTypesPage() {
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL"); // ALL, "1" (Active), "0" (Inactive)
   const [carTypes, setCarTypes] = useState([]);
 
   const [openModal, setOpenModal] = useState(false);
@@ -18,9 +19,16 @@ export default function CarTypesPage() {
 
   const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, carType: null, error: null, deleting: false });
 
+  // Statistics
+  const [stats, setStats] = useState({
+    total: 0,
+    active: 0,
+    inactive: 0,
+  });
+
   // Pagination
   const [page, setPage] = useState(1);
-  const pageSize = 5;
+  const [pageSize, setPageSize] = useState(5);
 
   // LOAD DATA
   const loadData = async () => {
@@ -28,7 +36,8 @@ export default function CarTypesPage() {
       const res = await searchCarTypes({
         page: page - 1,
         size: pageSize,
-        keyword: search.trim(),
+        keyword: search.trim() || undefined,
+        status: statusFilter !== "ALL" ? Number(statusFilter) : undefined,
       });
 
       const list = res.items.map((x) => ({
@@ -46,9 +55,38 @@ export default function CarTypesPage() {
     }
   };
 
+  // ============================
+  // LOAD STATISTICS
+  // ============================
+  const loadStats = async () => {
+    try {
+      // Load all car types to calculate stats
+      const res = await searchCarTypes({
+        page: 0,
+        size: 1000, // Get all for stats
+        keyword: undefined,
+        status: undefined,
+      });
+
+      const allItems = res.items || [];
+      const total = allItems.length;
+      const active = allItems.filter((item) => item.status === 1).length;
+      const inactive = total - active;
+
+      setStats({
+        total,
+        active,
+        inactive,
+      });
+    } catch (err) {
+      console.error("Failed to load stats", err);
+    }
+  };
+
   useEffect(() => {
     loadData();
-  }, [search, page]);
+    loadStats();
+  }, [search, page, pageSize, statusFilter]);
 
   // FILTER & PAGINATION
   const filtered = carTypes;
@@ -128,6 +166,7 @@ export default function CarTypesPage() {
       toast.success("Car type deleted successfully");
       setDeleteConfirm({ isOpen: false, carType: null, error: null, deleting: false });
       loadData();
+      loadStats();
     } catch (err) {
       // Get error message from response
       let backendMsg = "";
@@ -167,31 +206,92 @@ export default function CarTypesPage() {
     }
   };
 
-  useEffect(() => {
-    if (!toast) return;
-    const t = setTimeout(() => setToast(null), 2500);
-    return () => clearTimeout(t);
-  }, [toast]);
-
   return (
     <div className="p-6">
 
       {/* HEADER */}
-      <div className="flex justify-between mb-5">
-        <input
-          type="text"
-          className="border px-3 py-2 rounded-lg text-sm"
-          placeholder="Search car types..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h2 className="text-2xl font-bold text-neutral-900">Car Types</h2>
+          <p className="text-sm text-neutral-600 mt-1">Manage car types and their information</p>
+        </div>
         <button
           onClick={handleAdd}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg"
+          className="rounded-lg bg-gradient-to-r from-primary-600 to-primary-500 px-5 py-2.5 text-sm font-semibold text-white shadow-md hover:shadow-lg hover:from-primary-700 hover:to-primary-600 transition-all"
         >
-          + Add
+          + Add New Car Type
         </button>
+      </div>
+
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-neutral-600 mb-1">Total Car Types</p>
+              <p className="text-2xl font-bold text-neutral-900">{stats.total}</p>
+            </div>
+            <div className="p-3 bg-primary-100 rounded-lg">
+              <svg className="h-6 w-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-neutral-600 mb-1">Active Car Types</p>
+              <p className="text-2xl font-bold text-green-600">{stats.active}</p>
+            </div>
+            <div className="p-3 bg-green-100 rounded-lg">
+              <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-neutral-600 mb-1">Inactive Car Types</p>
+              <p className="text-2xl font-bold text-red-600">{stats.inactive}</p>
+            </div>
+            <div className="p-3 bg-red-100 rounded-lg">
+              <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Search and Filter */}
+      <div className="flex gap-3 mb-5">
+        <input
+          type="text"
+          className="flex-1 border border-neutral-200 px-4 py-2.5 rounded-lg text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-200 focus:outline-none transition"
+          placeholder="Search car types..."
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
+        />
+        <select
+          value={statusFilter}
+          onChange={(e) => {
+            setStatusFilter(e.target.value);
+            setPage(1);
+          }}
+          className="rounded-lg border border-neutral-200 bg-white px-4 py-2.5 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-200 focus:outline-none transition"
+        >
+          <option value="ALL">All Status</option>
+          <option value="1">Active</option>
+          <option value="0">Inactive</option>
+        </select>
       </div>
 
       {/* TABLE */}
@@ -202,6 +302,11 @@ export default function CarTypesPage() {
         endIndex={endIndex}
         page={page}
         totalPages={totalPages}
+        pageSize={pageSize}
+        onPageSizeChange={(newSize) => {
+          setPageSize(newSize);
+          setPage(1);
+        }}
         onChangePage={(dir) => {
           if (dir === "prev") setPage((p) => Math.max(1, p - 1));
           if (dir === "next") setPage((p) => Math.min(totalPages, p + 1));

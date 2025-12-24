@@ -38,7 +38,7 @@ export default function CarManagement() {
   const [search, setSearch] = useState("");
   const [carTypes, setCarTypes] = useState([]);
   const [page, setPage] = useState(0);
-  const [size] = useState(10);
+  const [size, setSize] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
   const [total, setTotal] = useState(0);
 
@@ -92,14 +92,15 @@ export default function CarManagement() {
   };
 
   useEffect(() => {
-    loadCars();
     getAllCarTypes().then(setCarTypes).catch(() => { });
   }, []);
 
   useEffect(() => {
-    const id = setTimeout(loadCars, 400);
+    const id = setTimeout(() => {
+      loadCars();
+    }, 400);
     return () => clearTimeout(id);
-  }, [search, page]);
+  }, [search, page, size]);
 
   // ================= MAP HELPERS =================
   const toForm = (c) => ({
@@ -420,25 +421,110 @@ export default function CarManagement() {
       </div>
 
       {/* PAGINATION */}
-      <div className="flex items-center justify-between mt-4 text-sm">
-        <div className="text-neutral-600">
-          Page {page + 1} / {Math.max(totalPages, 1)} • Total {total}
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setPage((p) => Math.max(p - 1, 0))}
-            disabled={page <= 0}
-            className="px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-700 disabled:opacity-50 disabled:bg-neutral-100 hover:bg-primary-50 hover:border-primary-300 transition"
+      <div className="flex items-center justify-between mt-4 flex-wrap gap-4">
+        {/* Showing info */}
+        <p className="text-sm text-neutral-600 font-medium">
+          {total === 0
+            ? "No cars"
+            : `Showing ${page * size + 1}–${Math.min((page + 1) * size, total)} of ${total} cars`}
+        </p>
+
+        <div className="flex items-center gap-4">
+          {/* Page size selector */}
+          <select
+            value={size}
+            onChange={(e) => {
+              setSize(Number(e.target.value));
+              setPage(0);
+            }}
+            className="border border-neutral-200 bg-white px-3 py-1.5 rounded-lg text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-200 focus:outline-none"
           >
-            Prev
-          </button>
-          <button
-            onClick={() => setPage((p) => (p + 1 < totalPages ? p + 1 : p))}
-            disabled={page + 1 >= totalPages}
-            className="px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-700 disabled:opacity-50 disabled:bg-neutral-100 hover:bg-primary-50 hover:border-primary-300 transition"
-          >
-            Next
-          </button>
+            <option value={5}>5 per page</option>
+            <option value={10}>10 per page</option>
+            <option value={20}>20 per page</option>
+            <option value={50}>50 per page</option>
+          </select>
+
+          {/* Page navigation */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(p - 1, 0))}
+              disabled={page <= 0}
+              className="px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-700 disabled:opacity-50 disabled:bg-neutral-100 hover:bg-primary-50 hover:border-primary-300 transition"
+            >
+              Prev
+            </button>
+            
+            {/* Page numbers */}
+            {totalPages > 0 && (() => {
+              const pages = [];
+              const maxVisible = 7;
+              
+              if (totalPages <= maxVisible) {
+                // Show all pages if total is small
+                for (let i = 0; i < totalPages; i++) {
+                  pages.push(i);
+                }
+              } else {
+                // Always show first page
+                pages.push(0);
+                
+                if (page <= 3) {
+                  // Near the start: 0 1 2 3 4 ... last
+                  for (let i = 1; i <= 4; i++) {
+                    pages.push(i);
+                  }
+                  pages.push('...');
+                  pages.push(totalPages - 1);
+                } else if (page >= totalPages - 4) {
+                  // Near the end: 0 ... last-4 last-3 last-2 last-1 last
+                  pages.push('...');
+                  for (let i = totalPages - 5; i < totalPages; i++) {
+                    pages.push(i);
+                  }
+                } else {
+                  // In the middle: 0 ... current-1 current current+1 ... last
+                  pages.push('...');
+                  for (let i = page - 1; i <= page + 1; i++) {
+                    pages.push(i);
+                  }
+                  pages.push('...');
+                  pages.push(totalPages - 1);
+                }
+              }
+              
+              return pages.map((pageNum, idx) => {
+                if (pageNum === '...') {
+                  return (
+                    <span key={`ellipsis-${idx}`} className="px-2 text-neutral-400">
+                      ...
+                    </span>
+                  );
+                }
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setPage(pageNum)}
+                    className={`px-3 py-1.5 rounded-lg border transition ${
+                      page === pageNum
+                        ? "bg-primary-600 text-white border-primary-600"
+                        : "bg-white border-neutral-200 text-neutral-700 hover:bg-primary-50 hover:border-primary-300"
+                    }`}
+                  >
+                    {pageNum + 1}
+                  </button>
+                );
+              });
+            })()}
+            
+            <button
+              onClick={() => setPage((p) => (p + 1 < totalPages ? p + 1 : p))}
+              disabled={page + 1 >= totalPages}
+              className="px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-700 disabled:opacity-50 disabled:bg-neutral-100 hover:bg-primary-50 hover:border-primary-300 transition"
+            >
+              Next
+            </button>
+          </div>
         </div>
       </div>
 

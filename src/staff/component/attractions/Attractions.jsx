@@ -15,6 +15,7 @@ export default function Attractions() {
   const [cities, setCities] = useState([]);
   const [search, setSearch] = useState("");
   const [selectedCity, setSelectedCity] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL"); // ALL, "1" (Active), "0" (Inactive)
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
@@ -22,6 +23,13 @@ export default function Attractions() {
   const [error, setError] = useState("");
   
   const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, attraction: null, error: null, deleting: false });
+
+  // Statistics
+  const [stats, setStats] = useState({
+    total: 0,
+    active: 0,
+    inactive: 0,
+  });
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -69,6 +77,7 @@ export default function Attractions() {
         size: pageSize,
         keyword: search.trim() || undefined,
         cityID: selectedCity ? Number(selectedCity) : undefined,
+        status: statusFilter !== "ALL" ? Number(statusFilter) : undefined,
       });
 
       // Map response data to component format (only fields in entity)
@@ -94,8 +103,38 @@ export default function Attractions() {
     }
   };
 
+  // ============================
+  // LOAD STATISTICS
+  // ============================
+  const loadStats = async () => {
+    try {
+      // Load all attractions to calculate stats
+      const res = await searchAttractions({
+        page: 0,
+        size: 1000, // Get all for stats
+        keyword: undefined,
+        cityID: undefined,
+        status: undefined,
+      });
+
+      const allItems = res.items || [];
+      const total = allItems.length;
+      const active = allItems.filter((item) => item.status === 1).length;
+      const inactive = total - active;
+
+      setStats({
+        total,
+        active,
+        inactive,
+      });
+    } catch (err) {
+      console.error("Failed to load stats", err);
+    }
+  };
+
   useEffect(() => {
     loadCities();
+    loadStats();
   }, []);
 
   // ============================
@@ -106,13 +145,13 @@ export default function Attractions() {
     // Reset sort when search/filter changes
     setSortField(null);
     setSortDirection('asc');
-  }, [search, selectedCity, pageSize]);
+  }, [search, selectedCity, pageSize, statusFilter]);
 
   useEffect(() => {
     if (cities.length > 0) {
       loadData();
     }
-  }, [search, selectedCity, pageSize, currentPage, cities.length]);
+  }, [search, selectedCity, pageSize, currentPage, statusFilter]);
 
   useEffect(() => {
     if (totalPages > 0 && currentPage > totalPages) {
@@ -146,6 +185,7 @@ export default function Attractions() {
       toast.success("Attraction deleted successfully");
       setDeleteConfirm({ isOpen: false, attraction: null, error: null, deleting: false });
       loadData();
+      loadStats();
     } catch (err) {
       // Get error message from response
       let backendMsg = "";
@@ -221,6 +261,7 @@ export default function Attractions() {
       setModalOpen(false);
       setEditingItem(null);
       loadData();
+      loadStats();
     } catch (err) {
       console.error(err);
       
@@ -315,8 +356,54 @@ export default function Attractions() {
         </button>
       </div>
 
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-neutral-600 mb-1">Total Attractions</p>
+              <p className="text-2xl font-bold text-neutral-900">{stats.total}</p>
+            </div>
+            <div className="p-3 bg-primary-100 rounded-lg">
+              <svg className="h-6 w-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-neutral-600 mb-1">Active Attractions</p>
+              <p className="text-2xl font-bold text-green-600">{stats.active}</p>
+            </div>
+            <div className="p-3 bg-green-100 rounded-lg">
+              <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-neutral-600 mb-1">Inactive Attractions</p>
+              <p className="text-2xl font-bold text-red-600">{stats.inactive}</p>
+            </div>
+            <div className="p-3 bg-red-100 rounded-lg">
+              <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Filters & Sort Controls */}
-      <div className="mb-4 flex items-center gap-3">
+      <div className="mb-4 flex items-center gap-3 flex-wrap">
         <input
           type="text"
           placeholder="Search attractions..."
@@ -335,6 +422,15 @@ export default function Attractions() {
               {city.CityName}
             </option>
           ))}
+        </select>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="rounded-lg border border-neutral-200 bg-white px-4 py-2.5 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-200 focus:outline-none transition"
+        >
+          <option value="ALL">All Status</option>
+          <option value="1">Active</option>
+          <option value="0">Inactive</option>
         </select>
         {sortField && (
           <button
@@ -508,20 +604,66 @@ export default function Attractions() {
           </button>
 
           {/* Page numbers */}
-          {totalPages > 0 &&
-            [...Array(totalPages)].map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setCurrentPage(i + 1)}
-                className={`px-3 py-1.5 rounded-lg border transition ${
-                  currentPage === i + 1
-                    ? "bg-primary-600 text-white border-primary-600 shadow-sm"
-                    : "bg-white border-neutral-200 text-neutral-700 hover:bg-primary-50 hover:border-primary-300"
-                }`}
-              >
-                {i + 1}
-              </button>
-            ))}
+          {totalPages > 0 && (() => {
+            const pages = [];
+            const maxVisible = 7;
+            
+            if (totalPages <= maxVisible) {
+              // Show all pages if total is small
+              for (let i = 1; i <= totalPages; i++) {
+                pages.push(i);
+              }
+            } else {
+              // Always show first page
+              pages.push(1);
+              
+              if (currentPage <= 4) {
+                // Near the start: 1 2 3 4 5 ... last
+                for (let i = 2; i <= 5; i++) {
+                  pages.push(i);
+                }
+                pages.push('...');
+                pages.push(totalPages);
+              } else if (currentPage >= totalPages - 3) {
+                // Near the end: 1 ... last-4 last-3 last-2 last-1 last
+                pages.push('...');
+                for (let i = totalPages - 4; i <= totalPages; i++) {
+                  pages.push(i);
+                }
+              } else {
+                // In the middle: 1 ... current-1 current current+1 ... last
+                pages.push('...');
+                for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+                  pages.push(i);
+                }
+                pages.push('...');
+                pages.push(totalPages);
+              }
+            }
+            
+            return pages.map((page, idx) => {
+              if (page === '...') {
+                return (
+                  <span key={`ellipsis-${idx}`} className="px-2 text-neutral-400">
+                    ...
+                  </span>
+                );
+              }
+              return (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`px-3 py-1.5 rounded-lg border transition ${
+                    currentPage === page
+                      ? "bg-primary-600 text-white border-primary-600 shadow-sm"
+                      : "bg-white border-neutral-200 text-neutral-700 hover:bg-primary-50 hover:border-primary-300"
+                  }`}
+                >
+                  {page}
+                </button>
+              );
+            });
+          })()}
 
           {/* Next */}
           <button

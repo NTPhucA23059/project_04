@@ -20,9 +20,9 @@ import {
   PaperAirplaneIcon,
   RectangleStackIcon,
 } from "@heroicons/react/24/outline";
+import logo from "../../../assets/img/logo.png";
 
 export default function StaffSidebar({ isOpen, activeTab, setActiveTab }) {
-  // State để quản lý các nhóm mở/đóng
   const [openGroups, setOpenGroups] = useState({
     tour: false,
     vehicle: false,
@@ -84,6 +84,8 @@ export default function StaffSidebar({ isOpen, activeTab, setActiveTab }) {
       items: [
         { id: "refunds", name: "Refunds", icon: ArrowPathIcon },
         { id: "invoices", name: "Invoices", icon: DocumentTextIcon },
+        { id: "reviews", name: "Reviews", icon: StarIcon },
+
       ],
     },
     {
@@ -103,17 +105,9 @@ export default function StaffSidebar({ isOpen, activeTab, setActiveTab }) {
          border-r border-neutral-200 shadow-xl transform transition-transform duration-300 overflow-y-auto`}
     >
       {/* Logo Section */}
-      <div className="h-20 px-6 flex items-center justify-between bg-gradient-to-r from-primary-50 to-accent-50 border-b border-primary-200">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-md ring-2 ring-primary-100">
-            <span className="text-white font-bold text-lg">S</span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-sm font-bold text-neutral-900">Staff Portal</span>
-            <span className="text-xs text-neutral-600 font-medium">Management System</span>
-          </div>
-        </div>
-      </div>
+       <div className="flex items-center justify-between px-8 h-20">
+              <img src={logo} alt="logo" className="h-40 w-40 " />
+            </div>
 
       {/* Navigation */}
       <nav className="px-4 py-6 space-y-5 bg-white">

@@ -26,9 +26,14 @@ export default function HotelAmenityManagement() {
   const [selectedCategory, setSelectedCategory] = useState("");
   const [hotels, setHotels] = useState([]);
   const [page, setPage] = useState(0);
-  const [size] = useState(10);
+  const [size, setSize] = useState(10);
   const [totalPages, setTotalPages] = useState(0);
   const [total, setTotal] = useState(0);
+
+  // Statistics
+  const [stats, setStats] = useState({
+    total: 0,
+  });
 
   const [openModal, setOpenModal] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -78,22 +83,47 @@ export default function HotelAmenityManagement() {
     }
   };
 
+  // ============================
+  // LOAD STATISTICS
+  // ============================
+  const loadStats = async () => {
+    try {
+      // Load all amenities to calculate stats
+      const res = await searchHotelAmenities({
+        page: 0,
+        size: 1000, // Get all for stats
+        keyword: undefined,
+        hotelID: undefined,
+        category: undefined,
+      });
+
+      const totalCount = res.items?.length || 0;
+      setStats({
+        total: totalCount,
+      });
+    } catch (err) {
+      console.error("Failed to load stats", err);
+    }
+  };
+
   useEffect(() => {
     loadAmenities();
     loadHotels();
+    loadStats();
   }, []);
 
   useEffect(() => {
     const id = setTimeout(() => {
       setPage(0);
       loadAmenities();
+      loadStats();
     }, 400);
     return () => clearTimeout(id);
   }, [search, selectedHotelID, selectedCategory]);
 
   useEffect(() => {
     loadAmenities();
-  }, [page]);
+  }, [page, size]);
 
   // ================= MAP HELPERS =================
   const toForm = (a) => ({
@@ -107,18 +137,66 @@ export default function HotelAmenityManagement() {
 
   const toPayload = (f) => ({
     hotelID: f.hotelID ? Number(f.hotelID) : null,
-    amenityName: f.amenityName,
-    amenityCategory: f.amenityCategory || null,
-    icon: f.icon || null,
-    sortOrder: f.sortOrder === "" ? 0 : Number(f.sortOrder),
+    amenityName: f.amenityName.trim(),
+    amenityCategory: f.amenityCategory && f.amenityCategory.trim() ? f.amenityCategory.trim() : null,
+    icon: f.icon && f.icon.trim() ? f.icon.trim() : null,
+    sortOrder: f.sortOrder === "" || f.sortOrder === null || f.sortOrder === undefined ? 0 : Number(f.sortOrder),
   });
 
   // ================= VALIDATE =================
   const validate = () => {
     const e = {};
-    if (!form.hotelID) e.hotelID = "Hotel required";
-    if (!form.amenityName.trim()) e.amenityName = "Amenity name required";
-    if (form.sortOrder !== "" && Number(form.sortOrder) < 0) e.sortOrder = "Sort order must be >= 0";
+    
+    // Hotel ID: required, must be valid number
+    if (!form.hotelID) {
+      e.hotelID = "Hotel is required";
+    } else {
+      const hotelIDNum = Number(form.hotelID);
+      if (isNaN(hotelIDNum) || hotelIDNum <= 0 || !Number.isInteger(hotelIDNum)) {
+        e.hotelID = "Please select a valid hotel";
+      }
+    }
+    
+    // Amenity Name: required, not blank, max 100 characters
+    const amenityNameTrimmed = form.amenityName.trim();
+    if (!amenityNameTrimmed) {
+      e.amenityName = "Amenity name is required";
+    } else if (amenityNameTrimmed.length > 100) {
+      e.amenityName = "Amenity name must be 100 characters or less";
+    } else if (amenityNameTrimmed.length < 2) {
+      e.amenityName = "Amenity name must be at least 2 characters";
+    }
+    
+    // Amenity Category: optional, but if provided max 50 characters
+    if (form.amenityCategory && form.amenityCategory.trim()) {
+      const categoryTrimmed = form.amenityCategory.trim();
+      if (categoryTrimmed.length > 50) {
+        e.amenityCategory = "Category must be 50 characters or less";
+      }
+    }
+    
+    // Icon: optional, but if provided max 50 characters
+    if (form.icon && form.icon.trim()) {
+      const iconTrimmed = form.icon.trim();
+      if (iconTrimmed.length > 50) {
+        e.icon = "Icon must be 50 characters or less";
+      }
+    }
+    
+    // Sort Order: must be integer >= 0, reasonable max (10000)
+    if (form.sortOrder !== "" && form.sortOrder !== null && form.sortOrder !== undefined) {
+      const sortOrderNum = Number(form.sortOrder);
+      if (isNaN(sortOrderNum)) {
+        e.sortOrder = "Sort order must be a valid number";
+      } else if (!Number.isInteger(sortOrderNum)) {
+        e.sortOrder = "Sort order must be an integer";
+      } else if (sortOrderNum < 0) {
+        e.sortOrder = "Sort order must be 0 or greater";
+      } else if (sortOrderNum > 10000) {
+        e.sortOrder = "Sort order must be 10000 or less";
+      }
+    }
+    
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -143,6 +221,7 @@ export default function HotelAmenityManagement() {
       setEditing(null);
       setForm(emptyForm);
       loadAmenities();
+      loadStats();
     } catch (err) {
       console.error("Save amenity error:", err.response?.data || err.message || err);
       const errorMsg = err.response?.data?.message || err.response?.data?.error || err.message || "Save failed";
@@ -166,6 +245,7 @@ export default function HotelAmenityManagement() {
       toast.success("Amenity deleted successfully");
       setDeleteConfirm({ isOpen: false, amenity: null, error: null, deleting: false });
       loadAmenities();
+      loadStats();
     } catch (err) {
       console.error("Delete amenity error:", err.response?.data || err.message || err);
       
@@ -221,6 +301,21 @@ export default function HotelAmenityManagement() {
         >
           + Add Amenity
         </button>
+      </div>
+
+      {/* Statistics Card */}
+      <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-sm mb-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-neutral-600 mb-1">Total Amenities</p>
+            <p className="text-2xl font-bold text-neutral-900">{stats.total}</p>
+          </div>
+          <div className="p-3 bg-primary-100 rounded-lg">
+            <svg className="h-6 w-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+            </svg>
+          </div>
+        </div>
       </div>
 
       {/* SEARCH & FILTERS */}
@@ -352,25 +447,76 @@ export default function HotelAmenityManagement() {
       </div>
 
       {/* PAGINATION */}
-      <div className="flex items-center justify-between mt-4 text-sm">
-        <div className="text-neutral-600">
-          Page {page + 1} / {Math.max(totalPages, 1)} • Total {total}
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setPage((p) => Math.max(p - 1, 0))}
-            disabled={page <= 0}
-            className="px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-700 disabled:opacity-50 disabled:bg-neutral-100 hover:bg-primary-50 hover:border-primary-300 transition"
+      <div className="flex items-center justify-between mt-4 flex-wrap gap-4">
+        {/* Showing info */}
+        <p className="text-sm text-neutral-600 font-medium">
+          {total === 0
+            ? "No amenities"
+            : `Showing ${page * size + 1}–${Math.min((page + 1) * size, total)} of ${total} amenities`}
+        </p>
+
+        <div className="flex items-center gap-4">
+          {/* Page size selector */}
+          <select
+            value={size}
+            onChange={(e) => {
+              setSize(Number(e.target.value));
+              setPage(0);
+            }}
+            className="border border-neutral-200 bg-white px-3 py-1.5 rounded-lg text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-200 focus:outline-none"
           >
-            Prev
-          </button>
-          <button
-            onClick={() => setPage((p) => (p + 1 < totalPages ? p + 1 : p))}
-            disabled={page + 1 >= totalPages}
-            className="px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-700 disabled:opacity-50 disabled:bg-neutral-100 hover:bg-primary-50 hover:border-primary-300 transition"
-          >
-            Next
-          </button>
+            <option value={5}>5 per page</option>
+            <option value={10}>10 per page</option>
+            <option value={20}>20 per page</option>
+            <option value={50}>50 per page</option>
+          </select>
+
+          {/* Page navigation */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(p - 1, 0))}
+              disabled={page <= 0}
+              className="px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-700 disabled:opacity-50 disabled:bg-neutral-100 hover:bg-primary-50 hover:border-primary-300 transition"
+            >
+              Prev
+            </button>
+            
+            {/* Page numbers */}
+            {totalPages > 0 && [...Array(Math.min(totalPages, 5))].map((_, i) => {
+              let pageNum;
+              if (totalPages <= 5) {
+                pageNum = i;
+              } else if (page < 2) {
+                pageNum = i;
+              } else if (page >= totalPages - 3) {
+                pageNum = totalPages - 5 + i;
+              } else {
+                pageNum = page - 2 + i;
+              }
+              
+              return (
+                <button
+                  key={i}
+                  onClick={() => setPage(pageNum)}
+                  className={`px-3 py-1.5 rounded-lg border transition ${
+                    page === pageNum
+                      ? "bg-primary-600 text-white border-primary-600"
+                      : "bg-white border-neutral-200 text-neutral-700 hover:bg-primary-50 hover:border-primary-300"
+                  }`}
+                >
+                  {pageNum + 1}
+                </button>
+              );
+            })}
+            
+            <button
+              onClick={() => setPage((p) => (p + 1 < totalPages ? p + 1 : p))}
+              disabled={page + 1 >= totalPages}
+              className="px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-700 disabled:opacity-50 disabled:bg-neutral-100 hover:bg-primary-50 hover:border-primary-300 transition"
+            >
+              Next
+            </button>
+          </div>
         </div>
       </div>
 
@@ -423,6 +569,7 @@ export default function HotelAmenityManagement() {
                       value={form.amenityName}
                       onChange={(e) => setForm({ ...form, amenityName: e.target.value })}
                       placeholder="e.g. WiFi, Swimming Pool, Gym"
+                      maxLength={100}
                     />
                     {errors.amenityName && <p className="text-xs text-red-500 mt-1">{errors.amenityName}</p>}
                   </div>
@@ -431,21 +578,25 @@ export default function HotelAmenityManagement() {
                     <div>
                       <label className="text-xs text-neutral-500">Category</label>
                       <input
-                        className="w-full border border-neutral-200 px-3 py-2 rounded-lg mt-1 focus:ring-2 focus:ring-primary-500"
+                        className={`w-full border px-3 py-2 rounded-lg mt-1 focus:ring-2 focus:ring-primary-500 ${errors.amenityCategory ? "border-red-500" : "border-neutral-200"}`}
                         value={form.amenityCategory}
                         onChange={(e) => setForm({ ...form, amenityCategory: e.target.value })}
                         placeholder="e.g. Facility, Service, Entertainment"
+                        maxLength={50}
                       />
+                      {errors.amenityCategory && <p className="text-xs text-red-500 mt-1">{errors.amenityCategory}</p>}
                     </div>
 
                     <div>
                       <label className="text-xs text-neutral-500">Icon</label>
                       <input
-                        className="w-full border border-neutral-200 px-3 py-2 rounded-lg mt-1 focus:ring-2 focus:ring-primary-500"
+                        className={`w-full border px-3 py-2 rounded-lg mt-1 focus:ring-2 focus:ring-primary-500 ${errors.icon ? "border-red-500" : "border-neutral-200"}`}
                         value={form.icon}
                         onChange={(e) => setForm({ ...form, icon: e.target.value })}
                         placeholder="e.g. 🏊, 🏋️, 📶"
+                        maxLength={50}
                       />
+                      {errors.icon && <p className="text-xs text-red-500 mt-1">{errors.icon}</p>}
                     </div>
                   </div>
 
@@ -457,6 +608,7 @@ export default function HotelAmenityManagement() {
                       value={form.sortOrder}
                       onChange={(e) => setForm({ ...form, sortOrder: e.target.value })}
                       min={0}
+                      max={10000}
                       placeholder="0"
                     />
                     {errors.sortOrder && <p className="text-xs text-red-500 mt-1">{errors.sortOrder}</p>}

@@ -36,7 +36,7 @@ export default function Dashboard() {
     try {
       setLoading(true);
       const dashboardData = await getStaffDashboardStats();
-      
+
       setStats({
         totalRevenue: dashboardData.totalRevenue ? Number(dashboardData.totalRevenue) : 0,
         tourRevenue: dashboardData.tourRevenue ? Number(dashboardData.tourRevenue) : 0,
@@ -59,10 +59,15 @@ export default function Dashboard() {
   };
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat("vi-VN", {
+    // Convert from VND to USD (assuming backend returns VND)
+    // 1 USD = 24,000 VND
+    const usdAmount = amount / 24000;
+    return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: "VND",
-    }).format(amount);
+      currency: "USD",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(usdAmount);
   };
 
   const formatNumber = (num) => {
@@ -129,16 +134,16 @@ export default function Dashboard() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="bg-gradient-to-r from-primary-600 via-primary-500 to-accent-500 text-white p-6 rounded-xl shadow-lg">
+      <div className="bg-gradient-to-r from-primary-500 via-primary-400 to-accent-400 text-white p-6 rounded-xl shadow-lg">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold mb-2">Staff Dashboard</h1>
-            <p className="text-primary-100 text-sm">
+            <p className="text-primary-50 text-sm">
               Revenue and booking overview
             </p>
           </div>
           <div className="text-right">
-            <p className="text-sm text-primary-100">Today</p>
+            <p className="text-sm text-primary-50">Today</p>
             <p className="text-2xl font-bold">
               {new Date().toLocaleDateString("en-US", {
                 day: "numeric",
@@ -228,11 +233,10 @@ export default function Dashboard() {
                 <div
                   className="bg-blue-600 h-3 rounded-full transition-all"
                   style={{
-                    width: `${
-                      stats.totalRevenue > 0
+                    width: `${stats.totalRevenue > 0
                         ? Math.round((stats.tourRevenue / stats.totalRevenue) * 100)
                         : 0
-                    }%`,
+                      }%`,
                   }}
                 ></div>
               </div>
@@ -287,11 +291,10 @@ export default function Dashboard() {
                 <div
                   className="bg-green-600 h-3 rounded-full transition-all"
                   style={{
-                    width: `${
-                      stats.totalRevenue > 0
+                    width: `${stats.totalRevenue > 0
                         ? Math.round((stats.carRevenue / stats.totalRevenue) * 100)
                         : 0
-                    }%`,
+                      }%`,
                   }}
                 ></div>
               </div>

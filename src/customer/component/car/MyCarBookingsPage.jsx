@@ -6,6 +6,7 @@ import { getCurrentUser } from "../../../services/common/authService";
 import { fetchCarBookingsByAccount, fetchCarBookingFull } from "../../../services/customer/carBookingService";
 import { requestCarBookingRefund, getCarBookingRefund } from "../../../services/customer/refundService";
 import { MagnifyingGlassIcon, ArrowPathIcon } from "@heroicons/react/24/outline";
+
 import {
     Menu,
     MenuButton,
@@ -13,14 +14,15 @@ import {
     MenuItems,
 } from "@headlessui/react";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
-
+import CarReview from "./CarReview";
+import { submitCarReview } from "../../../services/customer/reviewService";
 const ITEMS_PER_PAGE = 5;
 
 export default function MyCarBookingsPage() {
     const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
-    
+
     // Search and filter state
     const [searchKeyword, setSearchKeyword] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -63,16 +65,16 @@ export default function MyCarBookingsPage() {
             setLoading(true);
             setError("");
             try {
-                const res = await fetchCarBookingsByAccount({ 
-                    page: page - 1, 
-                    size: ITEMS_PER_PAGE, 
+                const res = await fetchCarBookingsByAccount({
+                    page: page - 1,
+                    size: ITEMS_PER_PAGE,
                     accountID,
                     keyword: debouncedSearch || undefined,
                     status: selectedStatus || undefined
                 });
-                
+
                 const items = res.items || [];
-                
+
                 // Get full info for each booking to have car details
                 const fullList = await Promise.all(
                     items.map(async (b) => {
@@ -84,7 +86,7 @@ export default function MyCarBookingsPage() {
                         }
                     })
                 );
-                
+
                 setBookings(fullList);
                 setTotalPages(res.totalPages || 1);
                 setTotal(res.total || 0);
@@ -242,14 +244,14 @@ export default function MyCarBookingsPage() {
             setTimeout(() => setToastMessage(""), 3000);
             setShowRefundModal(false);
             setSelectedBookingForRefund(null);
-            
+
             // Reload bookings
             const user = getCurrentUser();
             const accountID = user?.accountID || user?.AccountID;
             if (accountID) {
-                const res = await fetchCarBookingsByAccount({ 
-                    page: page - 1, 
-                    size: ITEMS_PER_PAGE, 
+                const res = await fetchCarBookingsByAccount({
+                    page: page - 1,
+                    size: ITEMS_PER_PAGE,
                     accountID,
                     keyword: debouncedSearch || undefined,
                     status: selectedStatus || undefined
@@ -451,6 +453,15 @@ export default function MyCarBookingsPage() {
                                     View Details
                                 </Link>
                             </div>
+
+                            {status === "Completed" && (
+                                <div className="px-6 pb-6">
+                                    <CarReview
+                                        carBookingID={b.carBookingID}
+                                        onSubmit={submitCarReview}
+                                    />
+                                </div>
+                            )}
                         </div>
                     );
                 })}
@@ -461,7 +472,7 @@ export default function MyCarBookingsPage() {
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-lg p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
                         <h2 className="text-xl font-bold mb-4">Request Refund</h2>
-                        
+
                         <div className="space-y-4">
                             <div>
                                 <label className="block text-sm font-medium mb-1">Booking Code</label>
@@ -577,9 +588,8 @@ export default function MyCarBookingsPage() {
                     <button
                         onClick={() => goToPage(page - 1)}
                         disabled={page === 1}
-                        className={`px-3 py-1 rounded-lg border text-sm ${
-                            page === 1 ? "opacity-40 cursor-not-allowed" : "hover:bg-primary-100"
-                        }`}
+                        className={`px-3 py-1 rounded-lg border text-sm ${page === 1 ? "opacity-40 cursor-not-allowed" : "hover:bg-primary-100"
+                            }`}
                     >
                         Previous
                     </button>
@@ -600,9 +610,8 @@ export default function MyCarBookingsPage() {
                         <button
                             key={num}
                             onClick={() => goToPage(num)}
-                            className={`px-3 py-1 rounded-lg border text-sm ${
-                                page === num ? "bg-primary-600 text-white" : "hover:bg-primary-100"
-                            }`}
+                            className={`px-3 py-1 rounded-lg border text-sm ${page === num ? "bg-primary-600 text-white" : "hover:bg-primary-100"
+                                }`}
                         >
                             {num}
                         </button>
@@ -611,9 +620,8 @@ export default function MyCarBookingsPage() {
                     <button
                         onClick={() => goToPage(page + 1)}
                         disabled={page === totalPages}
-                        className={`px-3 py-1 rounded-lg border text-sm ${
-                            page === totalPages ? "opacity-40 cursor-not-allowed" : "hover:bg-primary-100"
-                        }`}
+                        className={`px-3 py-1 rounded-lg border text-sm ${page === totalPages ? "opacity-40 cursor-not-allowed" : "hover:bg-primary-100"
+                            }`}
                     >
                         Next
                     </button>
@@ -628,7 +636,7 @@ export default function MyCarBookingsPage() {
 ================================ */
 function FilterDropdown({ label, options, selected, onChange, badge }) {
     const isSelected = selected !== null && selected !== undefined;
-    
+
     const selectedLabel = options.find(opt => opt.value === selected)?.label || label;
 
     return (
@@ -650,13 +658,12 @@ function FilterDropdown({ label, options, selected, onChange, badge }) {
                         <MenuItem key={opt.value ?? 'all'}>
                             <button
                                 onClick={() => onChange(opt.value === null ? null : (opt.value === selected ? null : opt.value))}
-                                className={`flex items-center gap-2 w-full px-3 py-2 text-sm rounded-lg hover:bg-neutral-100 transition ${
-                                    isChecked ? 'bg-primary-50 text-primary-700 font-medium' : ''
-                                }`}
+                                className={`flex items-center gap-2 w-full px-3 py-2 text-sm rounded-lg hover:bg-neutral-100 transition ${isChecked ? 'bg-primary-50 text-primary-700 font-medium' : ''
+                                    }`}
                             >
-                                <input 
-                                    type="checkbox" 
-                                    readOnly 
+                                <input
+                                    type="checkbox"
+                                    readOnly
                                     checked={isChecked}
                                     className="cursor-pointer"
                                 />

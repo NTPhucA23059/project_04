@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import api from "../../../services/api";
+import { getReviewsByTourID } from "../../../services/customer/reviewService";
 import TourDetail from "./TourDetail";
 
 export default function TourDetailWrapper() {
@@ -175,6 +176,21 @@ export default function TourDetailWrapper() {
                     }
                     : null;
 
+                // Load reviews for this tour
+                let reviews = [];
+                try {
+                    const reviewsData = await getReviewsByTourID(tourId);
+                    reviews = (reviewsData || []).map(r => ({
+                        ReviewID: r.reviewID,
+                        AccountID: r.accountID,
+                        Rating: r.rating,
+                        Comment: r.comment,
+                        CreatedAt: r.createdAt
+                    }));
+                } catch (e) {
+                    console.warn("Không tải được reviews:", e);
+                }
+
                 if (isMounted) {
                     setData({
                         tour,
@@ -183,7 +199,7 @@ export default function TourDetailWrapper() {
                         images,
                         category,
                         season,
-                        reviews: []     // TODO: bind reviews khi có API
+                        reviews: reviews
                     });
                 }
             } catch (err) {

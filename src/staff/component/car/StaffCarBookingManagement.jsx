@@ -51,6 +51,7 @@ export default function StaffCarBookingManagement() {
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
+    const [total, setTotal] = useState(0);
     const [keyword, setKeyword] = useState("");
     const [statusFilter, setStatusFilter] = useState("ALL");
     const [selectedBooking, setSelectedBooking] = useState(null);
@@ -91,11 +92,11 @@ export default function StaffCarBookingManagement() {
     
     const { confirm, dialog, handleConfirm, handleCancel } = useConfirm();
 
-    const pageSize = 10;
+    const [pageSize, setPageSize] = useState(10);
 
     useEffect(() => {
         fetchBookings();
-    }, [page, keyword, statusFilter]);
+    }, [page, pageSize, keyword, statusFilter]);
 
     const fetchBookings = async () => {
         setLoading(true);
@@ -107,6 +108,7 @@ export default function StaffCarBookingManagement() {
             const res = await api.get("/staff/car-bookings/full", { params });
             setBookings(res.data.items || []);
             setTotalPages(res.data.totalPages || 0);
+            setTotal(res.data.total || 0);
         } catch (err) {
             console.error(err);
             toast.error("Failed to load car bookings");
@@ -539,25 +541,80 @@ export default function StaffCarBookingManagement() {
             </div>
 
             {/* Pagination */}
-            {totalPages > 1 && (
-                <div className="flex justify-center mt-6">
-                    <button
-                        onClick={() => setPage(Math.max(0, page - 1))}
-                        disabled={page === 0}
-                        className="px-4 py-2 border rounded-l disabled:opacity-50"
+            <div className="flex items-center justify-between mt-6 flex-wrap gap-4">
+                {/* Showing info */}
+                <p className="text-sm text-neutral-600 font-medium">
+                    {total === 0
+                        ? "No bookings"
+                        : `Showing ${page * pageSize + 1}–${Math.min((page + 1) * pageSize, total)} of ${total} bookings`}
+                </p>
+
+                <div className="flex items-center gap-4">
+                    {/* Page size selector */}
+                    <select
+                        value={pageSize}
+                        onChange={(e) => {
+                            setPageSize(Number(e.target.value));
+                            setPage(0);
+                        }}
+                        className="border border-neutral-200 bg-white px-3 py-1.5 rounded-lg text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-200 focus:outline-none"
                     >
-                        Previous
-                    </button>
-                    <span className="px-4 py-2 border-t border-b">{page + 1} / {totalPages}</span>
-                    <button
-                        onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
-                        disabled={page === totalPages - 1}
-                        className="px-4 py-2 border rounded-r disabled:opacity-50"
-                    >
-                        Next
-                    </button>
+                        <option value={5}>5 per page</option>
+                        <option value={10}>10 per page</option>
+                        <option value={20}>20 per page</option>
+                        <option value={50}>50 per page</option>
+                    </select>
+
+                    {/* Page navigation */}
+                    {totalPages > 1 && (
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setPage(Math.max(0, page - 1))}
+                                disabled={page === 0}
+                                className="px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-700 disabled:opacity-50 disabled:bg-neutral-100 hover:bg-primary-50 hover:border-primary-300 transition"
+                            >
+                                Previous
+                            </button>
+                            
+                            {/* Page numbers */}
+                            {totalPages > 0 && [...Array(Math.min(totalPages, 5))].map((_, i) => {
+                                let pageNum;
+                                if (totalPages <= 5) {
+                                    pageNum = i;
+                                } else if (page < 2) {
+                                    pageNum = i;
+                                } else if (page >= totalPages - 3) {
+                                    pageNum = totalPages - 5 + i;
+                                } else {
+                                    pageNum = page - 2 + i;
+                                }
+                                
+                                return (
+                                    <button
+                                        key={i}
+                                        onClick={() => setPage(pageNum)}
+                                        className={`px-3 py-1.5 rounded-lg border transition ${
+                                            page === pageNum
+                                                ? "bg-primary-600 text-white border-primary-600"
+                                                : "bg-white border-neutral-200 text-neutral-700 hover:bg-primary-50 hover:border-primary-300"
+                                        }`}
+                                    >
+                                        {pageNum + 1}
+                                    </button>
+                                );
+                            })}
+                            
+                            <button
+                                onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
+                                disabled={page === totalPages - 1}
+                                className="px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-700 disabled:opacity-50 disabled:bg-neutral-100 hover:bg-primary-50 hover:border-primary-300 transition"
+                            >
+                                Next
+                            </button>
+                        </div>
+                    )}
                 </div>
-            )}
+            </div>
 
             {/* Detail Modal */}
             {showDetail && selectedBooking && (
