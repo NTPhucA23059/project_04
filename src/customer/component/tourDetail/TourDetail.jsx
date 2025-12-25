@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import TourScheduleAccordion from "./TourScheduleAccordion";
 import ReviewModal from "./ReviewModal";
 import TourImportantNotes from "./TourImportantNotes";
+import CityHotelsFlights from "./CityHotelsFlights";
 import { isAuthenticated } from "../../../services/common/authService";
 
 export default function TourDetail({ tour, details, allDetails = [], images, category, season, reviews }) {
@@ -244,36 +245,9 @@ export default function TourDetail({ tour, details, allDetails = [], images, cat
                                 </div>
                             )}
                         </div>
-
-                        {/* Route Cities */}
+                        {/* City Hotels & Flights */}
                         {tourCities.length > 0 && (
-                            <div className="bg-white rounded-lg p-5 border border-gray-200">
-                                <h3 className="text-lg font-semibold text-gray-900 mb-3">The city during the tour:</h3>
-                                <div className="space-y-2">
-                                    {tourCities.map((city, index) => (
-                                        <div key={city.CityID} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                                            <div className="flex-shrink-0 w-8 h-8 bg-gray-600 text-white rounded-full flex items-center justify-center text-sm font-medium">
-                                                {city.CityOrder}
-                                            </div>
-                                            <div className="flex-1">
-                                                <p className="font-medium text-gray-900">{city.CityName}</p>
-                                                {city.StayDays > 0 && (
-                                                    <p className="text-sm text-gray-600 mt-0.5">
-                                                        Stay: {city.StayDays} {city.StayDays === 1 ? 'day' : 'days'}
-                                                    </p>
-                                                )}
-                                            </div>
-                                            {index < tourCities.length - 1 && (
-                                                <div className="flex-shrink-0 text-gray-400">
-                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                                    </svg>
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
+                            <CityHotelsFlights tourCities={tourCities} />
                         )}
 
                         {/* Season */}

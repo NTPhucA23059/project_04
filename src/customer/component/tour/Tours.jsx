@@ -68,7 +68,7 @@ const toAbsoluteUrl = (url) => {
             TourDescription: t.tourDescription,
             Nation: t.nation,
             StartingLocation: t.startingLocation,
-            Duration: t.duration,
+            Duration: t.duration || t.Duration || null,
             CategoryID: t.categoryID,
             CategoryName: t.categoryName,
             Price: minPrice,

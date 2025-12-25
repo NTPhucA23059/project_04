@@ -59,7 +59,7 @@ export default function TourCard({ tour, schedule }) {
                     <div className="flex items-center gap-2">
                         <ClockIcon className="w-4 h-4 text-primary-500" />
                         <span>Duration:</span>
-                        <span className="font-medium">{tour.Duration}</span>
+                        <span className="font-medium">{tour.Duration || "N/A"}</span>
                     </div>
 
                     <div className="flex items-center gap-2">
