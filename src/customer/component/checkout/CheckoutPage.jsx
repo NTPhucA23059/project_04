@@ -100,7 +100,7 @@ export default function CheckoutPage() {
             if (/[0-9]/.test(v)) {
                 return "Full name cannot contain numbers. Please enter letters only.";
             }
-            if (/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>/?]/.test(v)) {
+            if (/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(v)) {
                 return "Full name cannot contain special characters. Please enter letters and spaces only.";
             }
             if (v.trim().length < 3) {
@@ -130,19 +130,37 @@ export default function CheckoutPage() {
             if (!v || !v.trim()) {
                 return "Phone number is required. Please enter your phone number.";
             }
-            const phoneRegex = /^[0-9]{8,15}$/;
-            if (!phoneRegex.test(v.replace(/\s/g, ""))) {
-                return "Invalid phone number. Please enter a phone number with 8-15 digits (numbers only, no special characters).";
+            const phoneTrimmed = v.trim();
+            let phoneToCheck = phoneTrimmed.replace(/\s/g, "").replace(/[+()-]/g, "");
+            
+            // Vietnam standard: 10 digits, starts with 0, second digit is 3, 5, 7, 8, or 9
+            // Or can start with +84 or 84
+            if (phoneTrimmed.startsWith("+84")) {
+                // If starts with +84, remove +84 and add 0
+                phoneToCheck = "0" + phoneToCheck.substring(2);
+            } else if (phoneToCheck.startsWith("84") && phoneToCheck.length === 11) {
+                // If starts with 84 and has 11 digits, remove 84 and add 0
+                phoneToCheck = "0" + phoneToCheck.substring(2);
+            }
+            
+            // Vietnam phone number: 0[3|5|7|8|9][0-9]{8}
+            const phoneRegex = /^0[35789][0-9]{8}$/;
+            if (!phoneRegex.test(phoneToCheck)) {
+                return "Invalid phone number. Please enter a 10-digit phone number starting with 0, second digit must be 3, 5, 7, 8, or 9 (e.g., 0912345678).";
             }
             return "";
         },
 
         CustomerCitizenCard: (v) => {
-            if (v && v.trim()) {
-                const cardRegex = /^[0-9]{9,12}$/;
-                if (!cardRegex.test(v.replace(/\s/g, ""))) {
-                    return "Invalid ID card/Passport. Please enter 9-12 digits (numbers only, no special characters).";
-                }
+            if (!v || !v.trim()) {
+                return "ID Card (CCCD/CMND) is required. Please enter your ID card number.";
+            }
+            const cardCleaned = v.replace(/\s/g, "");
+            
+            // Vietnam standard: 9 digits (old CMND) or 12 digits (new CCCD)
+            const cardRegex = /^[0-9]{9}$|^[0-9]{12}$/;
+            if (!cardRegex.test(cardCleaned)) {
+                return "Invalid ID card number. Please enter 9 digits (CMND) or 12 digits (CCCD).";
             }
             return "";
         },
@@ -220,9 +238,18 @@ export default function CheckoutPage() {
             const accountID = currentUser?.accountID || currentUser?.AccountID || 1;
 
             // Step 1: Create CustomerInfo
+            // Format phone number (remove +84 prefix if exists, ensure starts with 0)
+            const phoneTrimmed = form.CustomerPhone.trim();
+            let phoneNumber = phoneTrimmed.replace(/\s/g, "").replace(/[+()-]/g, "");
+            if (phoneTrimmed.startsWith("+84")) {
+                phoneNumber = "0" + phoneNumber.substring(2);
+            } else if (phoneNumber.startsWith("84") && phoneNumber.length === 11) {
+                phoneNumber = "0" + phoneNumber.substring(2);
+            }
+
             const customerInfoData = {
                 customerName: form.CustomerName.trim(),
-                customerPhone: form.CustomerPhone.trim().replace(/\s/g, ""),
+                customerPhone: phoneNumber,
                 customerEmail: form.CustomerEmail.trim(),
                 citizenCard: form.CustomerCitizenCard?.trim().replace(/\s/g, "") || null,
             };
@@ -272,10 +299,8 @@ export default function CheckoutPage() {
             // Step 4: Handle payment based on payment method
             if (form.PaymentMethod === "PAYPAL") {
                 try {
-                    // Convert VND to USD (assuming booking is in VND, adjust exchange rate as needed)
-                    // You can get real-time exchange rate from an API if needed
-                    const exchangeRate = 24000; // 1 USD = 24000 VND (adjust as needed)
-                    const amountInUSD = parseFloat((booking.orderTotal / exchangeRate).toFixed(2));
+                    // Process PayPal payment (amount is already in USD)
+                    const amountInUSD = parseFloat(booking.orderTotal.toFixed(2));
 
                     // Process PayPal payment
                     const approvalUrl = await processPayPalPayment(
@@ -300,7 +325,7 @@ export default function CheckoutPage() {
                 }
             } else if (form.PaymentMethod === "MOMO") {
                 try {
-                    // Process MoMo payment (amount is in VND)
+                    // Process MoMo payment (amount is in USD)
                     const payUrl = await processMomoPayment({
                         orderCode: booking.orderCode,
                         orderTotal: booking.orderTotal,

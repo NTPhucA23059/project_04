@@ -96,7 +96,7 @@ export const redirectToMomo = (payUrl) => {
  * Xử lý thanh toán MoMo cho Tour booking
  * @param {Object} booking - Thông tin booking
  * @param {string} booking.orderCode - Mã đơn hàng
- * @param {number} booking.orderTotal - Tổng tiền (VND)
+ * @param {number} booking.orderTotal - Tổng tiền (USD) - sẽ được chuyển đổi sang VND
  * @returns {Promise<string>} payUrl để redirect
  */
 export const processTourPayment = async (booking) => {
@@ -106,17 +106,21 @@ export const processTourPayment = async (booking) => {
       throw new Error("Thông tin booking không hợp lệ");
     }
     
-    const orderTotal = parseFloat(booking.orderTotal);
-    if (isNaN(orderTotal) || orderTotal <= 0) {
+    const orderTotalUSD = parseFloat(booking.orderTotal);
+    if (isNaN(orderTotalUSD) || orderTotalUSD <= 0) {
       throw new Error(`Số tiền không hợp lệ: ${booking.orderTotal}`);
     }
+    
+    // Convert USD to VND (1 USD = 24,000 VND) for MoMo payment
+    const USD_TO_VND_RATE = 24000;
+    const orderTotalVND = Math.round(orderTotalUSD * USD_TO_VND_RATE);
     
     // Kiểm tra booking trước
     await checkBooking(booking.orderCode, "TOUR");
 
-    // Tạo payment
+    // Tạo payment với số tiền đã chuyển đổi sang VND
     const paymentData = {
-      amount: orderTotal,
+      amount: orderTotalVND,
       orderId: booking.orderCode,
       orderInfo: `Thanh toán đơn hàng tour #${booking.orderCode}`,
       bookingType: "TOUR",
@@ -133,17 +137,31 @@ export const processTourPayment = async (booking) => {
  * Xử lý thanh toán MoMo cho Car booking
  * @param {Object} booking - Thông tin booking
  * @param {string} booking.bookingCode - Mã đơn đặt xe
- * @param {number} booking.finalTotal - Tổng tiền (VND)
+ * @param {number} booking.finalTotal - Tổng tiền (USD) - sẽ được chuyển đổi sang VND
  * @returns {Promise<string>} payUrl để redirect
  */
 export const processCarPayment = async (booking) => {
   try {
+    // Validate booking data
+    if (!booking || !booking.bookingCode) {
+      throw new Error("Thông tin booking không hợp lệ");
+    }
+    
+    const finalTotalUSD = parseFloat(booking.finalTotal) || 0;
+    if (isNaN(finalTotalUSD) || finalTotalUSD <= 0) {
+      throw new Error(`Số tiền không hợp lệ: ${booking.finalTotal}`);
+    }
+    
+    // Convert USD to VND (1 USD = 24,000 VND) for MoMo payment
+    const USD_TO_VND_RATE = 24000;
+    const finalTotalVND = Math.round(finalTotalUSD * USD_TO_VND_RATE);
+    
     // Kiểm tra booking trước
     await checkBooking(booking.bookingCode, "CAR");
 
-    // Tạo payment
+    // Tạo payment với số tiền đã chuyển đổi sang VND
     const paymentData = {
-      amount: parseFloat(booking.finalTotal) || 0,
+      amount: finalTotalVND,
       orderId: booking.bookingCode,
       orderInfo: `Thanh toán đơn đặt xe #${booking.bookingCode}`,
       bookingType: "CAR",

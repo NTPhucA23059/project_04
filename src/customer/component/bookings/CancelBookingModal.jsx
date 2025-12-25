@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { BuildingOfficeIcon, CreditCardIcon, UserIcon } from "@heroicons/react/24/outline";
+import { formatUSD } from "../../../utils/currency";
 
 export default function CancelBookingModal({ 
     show, 
@@ -109,7 +110,7 @@ export default function CancelBookingModal({
                             <div className="flex justify-between">
                                 <span className="text-gray-600">Original Amount:</span>
                                 <span className="font-semibold text-gray-900">
-                                    ${bookingTotal.toLocaleString()}
+                                    {formatUSD(bookingTotal)}
                                 </span>
                             </div>
                         )}
@@ -117,14 +118,14 @@ export default function CancelBookingModal({
                             <div className="flex justify-between items-center">
                                 <span className="text-gray-600 font-medium">Refund Amount:</span>
                                 <span className="font-bold text-green-700 text-xl">
-                                    ${refundInfo.refundAmount.toLocaleString()}
+                                    {formatUSD(refundInfo.refundAmount)}
                                 </span>
                             </div>
                             {bookingTotal && (
                                 <div className="flex justify-between items-center text-xs text-gray-500 pt-1">
                                     <span>You will receive:</span>
                                     <span className="font-semibold text-green-600">
-                                        ${refundInfo.refundAmount.toLocaleString()}
+                                        {formatUSD(refundInfo.refundAmount)}
                                     </span>
                                 </div>
                             )}

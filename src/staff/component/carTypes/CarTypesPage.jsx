@@ -311,7 +311,7 @@ export default function CarTypesPage() {
           if (dir === "prev") setPage((p) => Math.max(1, p - 1));
           if (dir === "next") setPage((p) => Math.min(totalPages, p + 1));
         }}
-        onEdit={setEditing}
+        onEdit={handleEdit}
         onDelete={handleDelete}
       />
 

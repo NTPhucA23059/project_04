@@ -1,8 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import {
     fetchAllReviews,
-    fetchAllReviewsByBooking
+    fetchAllReviewsByBooking,
+    deleteReview
 } from "../../../services/staff/reviewService";
+import { toast } from "../../shared/toast/toast";
+import { useConfirm } from "../../shared/confirm/useConfirm";
+import ConfirmDialog from "../../shared/confirm/ConfirmDialog";
 
 const typeBadge = {
     TOUR: "bg-blue-100 text-blue-700 border border-blue-200",
@@ -21,6 +25,7 @@ export default function ReviewManagement() {
 
     const [bookingReviews, setBookingReviews] = useState([]);
     const [showBookingDrawer, setShowBookingDrawer] = useState(false);
+    const { confirm, dialog, handleConfirm, handleCancel } = useConfirm();
 
     // ==========================
     // LOAD ALL REVIEWS
@@ -117,6 +122,46 @@ export default function ReviewManagement() {
         const data = await fetchAllReviewsByBooking(params);
         setBookingReviews(data);
         setShowBookingDrawer(true);
+    };
+
+    // ==========================
+    // DELETE REVIEW
+    // ==========================
+    const handleDeleteReview = async (reviewID) => {
+        const confirmed = await confirm({
+            title: "Delete Review",
+            message: "Are you sure you want to delete this review? This action cannot be undone.",
+            confirmText: "Delete",
+            cancelText: "Cancel",
+            type: "danger"
+        });
+
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            await deleteReview(reviewID);
+            toast.success("Review deleted successfully");
+            
+            // Reload all reviews
+            const data = await fetchAllReviews();
+            setReviews(data);
+            
+            // Reload booking reviews if drawer is open
+            if (showBookingDrawer && bookingReviews.length > 0) {
+                const firstReview = bookingReviews[0];
+                const params = firstReview.bookingToursID
+                    ? { bookingToursID: firstReview.bookingToursID }
+                    : { carBookingID: firstReview.carBookingID };
+                const updatedData = await fetchAllReviewsByBooking(params);
+                setBookingReviews(updatedData);
+            }
+        } catch (err) {
+            console.error("Delete review error:", err);
+            const errorMessage = err?.response?.data?.message || err?.response?.data?.error || err?.message || "Failed to delete review";
+            toast.error(errorMessage);
+        }
     };
 
     return (
@@ -302,8 +347,21 @@ export default function ReviewManagement() {
                 <BookingReviewDrawer
                     reviews={bookingReviews}
                     onClose={() => setShowBookingDrawer(false)}
+                    onDelete={handleDeleteReview}
                 />
             )}
+
+            {/* Confirm Dialog */}
+            <ConfirmDialog
+                isOpen={dialog.isOpen}
+                title={dialog.title}
+                message={dialog.message}
+                type={dialog.type}
+                confirmText={dialog.confirmText}
+                cancelText={dialog.cancelText}
+                onConfirm={handleConfirm}
+                onClose={handleCancel}
+            />
         </div>
     );
 }
@@ -311,7 +369,7 @@ export default function ReviewManagement() {
 /* ==========================
    DRAWER
 ========================== */
-function BookingReviewDrawer({ reviews, onClose }) {
+function BookingReviewDrawer({ reviews, onClose, onDelete }) {
     return (
         <div className="fixed inset-0 bg-black/40 flex justify-end z-50">
             <div className="bg-white w-full max-w-lg h-full p-6 overflow-y-auto">
@@ -319,7 +377,12 @@ function BookingReviewDrawer({ reviews, onClose }) {
                     <h3 className="text-lg font-semibold">
                         Booking Reviews ({reviews.length})
                     </h3>
-                    <button onClick={onClose}>✕</button>
+                    <button 
+                        onClick={onClose}
+                        className="text-gray-500 hover:text-gray-700 text-xl font-bold"
+                    >
+                        ✕
+                    </button>
                 </div>
 
                 {reviews.length === 0 && (
@@ -329,10 +392,21 @@ function BookingReviewDrawer({ reviews, onClose }) {
                 )}
 
                 {reviews.map(r => (
-                    <div key={r.reviewID} className="border-b py-3">
-                        <div>⭐ {r.rating}/5</div>
-                        <p className="mt-1">{r.comment}</p>
-                        <p className="text-xs text-gray-500">
+                    <div key={r.reviewID} className="border-b border-gray-200 py-4 last:border-b-0">
+                        <div className="flex justify-between items-start mb-2">
+                            <div className="flex items-center gap-2">
+                                <span className="text-lg">⭐</span>
+                                <span className="font-semibold text-gray-900">{r.rating}/5</span>
+                            </div>
+                            <button
+                                onClick={() => onDelete(r.reviewID)}
+                                className="px-3 py-1.5 rounded-md bg-red-600 text-white hover:bg-red-700 transition text-xs font-medium shadow-sm"
+                            >
+                                Delete
+                            </button>
+                        </div>
+                        <p className="mt-2 text-gray-700">{r.comment || "No comment"}</p>
+                        <p className="text-xs text-gray-500 mt-2">
                             {new Date(r.createdAt).toLocaleString()}
                         </p>
                     </div>

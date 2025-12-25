@@ -7,7 +7,7 @@ import {
   PhoneIcon,
   MapPinIcon,
 } from "@heroicons/react/24/outline";
-import { apiFetch } from "../../../services/admin/client";
+import { getCurrentProfile, updateProfile, changePassword } from "../../../services/admin/profileAdminService";
 
 export default function ManageAdminProfile() {
   const [activeTab, setActiveTab] = useState("profile");
@@ -43,7 +43,7 @@ export default function ManageAdminProfile() {
       setIsLoading(true);
       setError("");
       try {
-        const data = await apiFetch("/user/profile");
+        const data = await getCurrentProfile();
         setProfileData({
           fullName: data.fullName || "",
           email: data.email || "",
@@ -90,10 +90,14 @@ export default function ManageAdminProfile() {
     }
     if (!passwordData.newPassword) {
       errors.newPassword = "Please enter new password";
-    } else if (passwordData.newPassword.length < 6) {
-      errors.newPassword = "Password must be at least 6 characters";
+    } else if (passwordData.newPassword.length < 8) {
+      errors.newPassword = "Password must be at least 8 characters";
+    } else if (passwordData.currentPassword && passwordData.newPassword === passwordData.currentPassword) {
+      errors.newPassword = "New password must be different from current password";
     }
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
+    if (!passwordData.confirmPassword) {
+      errors.confirmPassword = "Please confirm your new password";
+    } else if (passwordData.newPassword !== passwordData.confirmPassword) {
       errors.confirmPassword = "Confirm password does not match";
     }
     setPasswordErrors(errors);
@@ -114,10 +118,7 @@ export default function ManageAdminProfile() {
         gender: profileData.gender || null,
       };
 
-      await apiFetch("/user/profile", {
-        method: "PUT",
-        body: JSON.stringify(updateData),
-      });
+      await updateProfile(updateData);
 
       setOriginalProfileData({
         fullName: profileData.fullName,
@@ -158,13 +159,12 @@ export default function ManageAdminProfile() {
     setSuccessMessage("");
 
     try {
-      await apiFetch("/user/change-password", {
-        method: "POST",
-        body: JSON.stringify({
-          currentPassword: passwordData.currentPassword,
-          newPassword: passwordData.newPassword,
-        }),
-      });
+      const payload = {
+        oldPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
+      };
+
+      const response = await changePassword(payload);
 
       setPasswordData({
         currentPassword: "",
@@ -172,10 +172,11 @@ export default function ManageAdminProfile() {
         confirmPassword: "",
       });
       setPasswordErrors({});
-      setSuccessMessage("Password changed successfully!");
+      setSuccessMessage(response.message || "Password changed successfully!");
       setTimeout(() => setSuccessMessage(""), 3000);
     } catch (err) {
       setError(err.message || "Failed to change password");
+      setTimeout(() => setError(""), 5000);
     } finally {
       setIsSaving(false);
     }

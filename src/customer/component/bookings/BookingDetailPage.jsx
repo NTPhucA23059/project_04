@@ -9,6 +9,7 @@ import BookingPassengers from "./BookingPassengers";
 import BookingPaymentSummary from "./BookingPaymentSummary";
 import CancelBookingModal from "./CancelBookingModal";
 import api from "../../../services/api";
+import { formatUSD } from "../../../utils/currency";
 
 // Convert relative URL to absolute URL
 const toAbsoluteUrl = (url) => {
@@ -326,7 +327,7 @@ export default function BookingDetailPage() {
                                         <div className="flex justify-between">
                                             <span className="text-gray-600">Expected Refund Amount:</span>
                                             <span className="font-bold text-green-700">
-                                                ${(refund.refundAmount || 0).toLocaleString()}
+                                                {formatUSD(refund.refundAmount || 0)}
                                             </span>
                                         </div>
                                         {refund.cancelDate && (
@@ -368,7 +369,7 @@ export default function BookingDetailPage() {
                                         <div className="flex justify-between">
                                             <span className="text-gray-600">Refund Amount:</span>
                                             <span className="font-bold text-green-700 text-lg">
-                                                ${(refund.refundAmount || 0).toLocaleString()}
+                                                {formatUSD(refund.refundAmount || 0)}
                                             </span>
                                         </div>
                                         {refund.cancelDate && (

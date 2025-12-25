@@ -100,7 +100,7 @@ export default function CustomerInfoForm({ form, errors, validators, onUpdate, o
                 {/* Citizen Card */}
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                        ID Card / Passport <span className="text-gray-400 text-xs">(Optional)</span>
+                        ID Card (CCCD/CMND) <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
                         <IdentificationIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -108,7 +108,7 @@ export default function CustomerInfoForm({ form, errors, validators, onUpdate, o
                             name="CustomerCitizenCard"
                             type="text"
                             className={`${errors.CustomerCitizenCard ? inputErrorStyle : inputNormalStyle} pl-10`}
-                            placeholder="123456789012"
+                            placeholder="9 số (CMND) hoặc 12 số (CCCD)"
                             value={form.CustomerCitizenCard}
                             onChange={(e) => onUpdate("CustomerCitizenCard", e.target.value.replace(/\D/g, ""))}
                             onBlur={() => {

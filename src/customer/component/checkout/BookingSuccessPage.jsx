@@ -11,6 +11,7 @@ import {
     BuildingOfficeIcon,
 } from "@heroicons/react/24/solid";
 import { fetchBookingFullByOrderCode } from "../../../services/customer/bookingService";
+import { formatUSD } from "../../../utils/currency";
 
 export default function BookingSuccessPage() {
     const { state } = useLocation();
@@ -26,8 +27,8 @@ export default function BookingSuccessPage() {
 
     useEffect(() => {
         const loadBooking = async () => {
-            // If we have orderCode but no booking data, fetch it
-            if (orderCode && !booking) {
+            // If we have orderCode, always fetch latest booking data (especially after payment)
+            if (orderCode) {
                 setLoading(true);
                 try {
                     const bookingData = await fetchBookingFullByOrderCode(orderCode);
@@ -36,6 +37,8 @@ export default function BookingSuccessPage() {
                         ...bookingData.booking,
                         OrderCode: bookingData.booking.orderCode,
                         OrderTotal: bookingData.booking.orderTotal,
+                        PaymentStatus: bookingData.booking.paymentStatus,
+                        OrderStatus: bookingData.booking.orderStatus,
                         CapacityAdult: bookingData.booking.adultCount,
                         CapacityKid: bookingData.booking.childCount || 0,
                         CapacityBaby: bookingData.booking.infantCount || 0,
@@ -55,7 +58,7 @@ export default function BookingSuccessPage() {
             }
         };
         loadBooking();
-    }, [orderCode, booking, paymentMethodFromUrl]);
+    }, [orderCode, paymentMethodFromUrl]);
 
     if (loading) {
         return (
@@ -262,9 +265,9 @@ export default function BookingSuccessPage() {
                                         <td className="border p-2 text-center">1</td>
                                         <td className="border p-2">Adult</td>
                                         <td className="border p-2 text-center">{booking.CapacityAdult}</td>
-                                        <td className="border p-2 text-center">${unitPrice.toLocaleString()}</td>
+                                        <td className="border p-2 text-center">{formatUSD(unitPrice)}</td>
                                         <td className="border p-2 text-right font-semibold">
-                                            ${(booking.CapacityAdult * unitPrice).toLocaleString()}
+                                            {formatUSD(booking.CapacityAdult * unitPrice)}
                                         </td>
                                     </tr>
 
@@ -274,9 +277,9 @@ export default function BookingSuccessPage() {
                                             <td className="border p-2 text-center">2</td>
                                             <td className="border p-2">Child (70%)</td>
                                             <td className="border p-2 text-center">{booking.CapacityKid}</td>
-                                            <td className="border p-2 text-center">${(unitPrice * 0.7).toFixed(0)}</td>
+                                            <td className="border p-2 text-center">{formatUSD(unitPrice * 0.7)}</td>
                                             <td className="border p-2 text-right font-semibold">
-                                                ${(booking.CapacityKid * unitPrice * 0.7).toLocaleString()}
+                                                {formatUSD(booking.CapacityKid * unitPrice * 0.7)}
                                             </td>
                                         </tr>
                                     )}
@@ -287,9 +290,9 @@ export default function BookingSuccessPage() {
                                             <td className="border p-2 text-center">3</td>
                                             <td className="border p-2">Infant (30%)</td>
                                             <td className="border p-2 text-center">{booking.CapacityBaby}</td>
-                                            <td className="border p-2 text-center">${(unitPrice * 0.3).toFixed(0)}</td>
+                                            <td className="border p-2 text-center">{formatUSD(unitPrice * 0.3)}</td>
                                             <td className="border p-2 text-right font-semibold">
-                                                ${(booking.CapacityBaby * unitPrice * 0.3).toLocaleString()}
+                                                {formatUSD(booking.CapacityBaby * unitPrice * 0.3)}
                                             </td>
                                         </tr>
                                     )}
@@ -299,7 +302,7 @@ export default function BookingSuccessPage() {
                                     <tr className="bg-primary-50 font-bold">
                                         <td colSpan={4} className="p-2 border text-right">Total Amount</td>
                                         <td className="p-2 border text-right text-primary-700 text-lg">
-                                            ${booking.OrderTotal.toLocaleString()}
+                                            {formatUSD(booking.OrderTotal)}
                                         </td>
                                     </tr>
                                 </tfoot>

@@ -44,11 +44,11 @@ export default function SeasonFormModal({
   const validate = () => {
     const e = {};
 
-    // SeasonCode – CHỈ A-Z + _
+    // SeasonCode – A-Z + 0-9 + _
     if (!form.SeasonCode.trim()) {
       e.SeasonCode = "Season code is required";
-    } else if (!/^[A-Z_]+$/.test(form.SeasonCode)) {
-      e.SeasonCode = "Only uppercase letters and '_' are allowed";
+    } else if (!/^[A-Z0-9_]+$/.test(form.SeasonCode)) {
+      e.SeasonCode = "Only uppercase letters, numbers and '_' are allowed";
     } else if (
       list.some(
         (i) =>
@@ -109,7 +109,7 @@ export default function SeasonFormModal({
             value={form.SeasonCode}
             onChange={(e) => {
               const value = e.target.value.toUpperCase();
-              if (/^[A-Z_]*$/.test(value)) {
+              if (/^[A-Z0-9_]*$/.test(value)) {
                 setForm({ ...form, SeasonCode: value });
               }
             }}

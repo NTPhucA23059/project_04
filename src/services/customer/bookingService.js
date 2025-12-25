@@ -61,10 +61,11 @@ export const getBookingById = async (id) => {
 /**
  * Lấy danh sách booking theo accountID (public)
  */
-export const fetchBookingsByAccount = async ({ page = 0, size = 10, accountID }) => {
+export const fetchBookingsByAccount = async ({ page = 0, size = 10, accountID, status }) => {
   try {
     const params = { page, size };
     if (accountID) params.accountID = accountID;
+    if (status !== undefined && status !== null) params.status = status;
     const res = await api.get(BOOKING_BASE, { params });
     return res.data;
   } catch (error) {
@@ -104,6 +105,24 @@ export const fetchBookingFullByOrderCode = async (orderCode) => {
       error.response?.data?.error ||
       error.response?.data?.message ||
       "Không thể lấy thông tin booking";
+    throw new Error(errorMessage);
+  }
+};
+
+/**
+ * Lấy số lượng booking theo từng status cho accountID
+ */
+export const fetchBookingStatusCounts = async (accountID) => {
+  try {
+    const res = await api.get(`${BOOKING_BASE}/status-counts`, {
+      params: { accountID }
+    });
+    return res.data; // Map<Byte, Long> - {0: 5, 1: 10, ...}
+  } catch (error) {
+    const errorMessage =
+      error.response?.data?.error ||
+      error.response?.data?.message ||
+      "Không thể lấy số lượng booking theo status";
     throw new Error(errorMessage);
   }
 };

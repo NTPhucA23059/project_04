@@ -89,15 +89,28 @@ export default function InvoiceManagement() {
       (acc, inv) => {
         acc.count += 1;
         const amount = Number(inv.amount || 0);
-        acc.total += amount;
+        // Convert VND to USD (1 USD = 24,000 VND)
+        const amountUSD = amount / 24000;
+        acc.total += amountUSD;
         if (inv.paymentStatus === 1) {
-          acc.paid += amount;
+          acc.paid += amountUSD;
         }
         return acc;
       },
       { count: 0, total: 0, paid: 0 }
     );
   }, [invoices]);
+
+  // Format currency to USD
+  const formatUSD = (vndAmount) => {
+    const usdAmount = Number(vndAmount || 0) / 24000;
+    return usdAmount.toLocaleString('en-US', { 
+      style: 'currency', 
+      currency: 'USD', 
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    });
+  };
 
   // ============================
   // HANDLERS
@@ -212,8 +225,8 @@ export default function InvoiceManagement() {
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <SummaryCard label="Total Invoices" value={totals.count} />
-        <SummaryCard label="Total Amount" value={totals.total} accent />
-        <SummaryCard label="Paid Amount" value={totals.paid} accent />
+        <SummaryCard label="Total Revenue" value={totals.total} accent />
+        <SummaryCard label="Paid Revenue" value={totals.paid} accent />
       </div>
 
       {/* Filters */}
@@ -338,8 +351,8 @@ export default function InvoiceManagement() {
 
                     {/* Amount */}
                     <td className="px-4 py-2">
-                      <div className="font-semibold text-primary-600">
-                        {Number(inv.amount || 0).toLocaleString()} VND
+                      <div className="font-semibold text-primary-600 text-base">
+                        {formatUSD(inv.amount)}
                       </div>
                     </td>
 
@@ -482,15 +495,32 @@ export default function InvoiceManagement() {
 }
 
 function SummaryCard({ label, value, accent = false }) {
+  const formatValue = (val) => {
+    if (typeof val === "number") {
+      // If it's a currency amount (accent cards), format as USD
+      if (accent) {
+        return val.toLocaleString('en-US', { 
+          style: 'currency', 
+          currency: 'USD', 
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 0
+        });
+      }
+      // Otherwise just format as number
+      return val.toLocaleString();
+    }
+    return val;
+  };
+
   return (
     <div className="bg-white border border-neutral-200 rounded-xl p-5 shadow-sm hover:shadow-md transition">
-      <p className="text-xs text-neutral-600 font-medium">{label}</p>
+      <p className="text-xs text-neutral-600 font-medium uppercase tracking-wide">{label}</p>
       <p
         className={`text-2xl font-bold mt-2 ${
           accent ? "text-primary-600" : "text-neutral-900"
         }`}
       >
-        {typeof value === "number" ? value.toLocaleString() : value}
+        {formatValue(value)}
       </p>
     </div>
   );
@@ -499,6 +529,17 @@ function SummaryCard({ label, value, accent = false }) {
 function InvoiceDrawer({ invoice, onClose, paymentStatusMap, onPrint }) {
   const statusInfo =
     paymentStatusMap[invoice.paymentStatus] || paymentStatusMap[0];
+
+  // Format currency to USD
+  const formatUSD = (vndAmount) => {
+    const usdAmount = Number(vndAmount || 0) / 24000;
+    return usdAmount.toLocaleString('en-US', { 
+      style: 'currency', 
+      currency: 'USD', 
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    });
+  };
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex justify-end">
@@ -554,12 +595,17 @@ function InvoiceDrawer({ invoice, onClose, paymentStatusMap, onPrint }) {
           </section>
 
           {/* Amount */}
-          <section className="bg-gray-50 border rounded-xl p-4 space-y-2 text-sm">
-            <h4 className="font-semibold text-sm mb-2">Amount</h4>
-            <div className="flex justify-between">
-              <span className="text-gray-500">Total Amount</span>
-              <span className="font-semibold text-primary-600 text-lg">
-                {Number(invoice.amount || 0).toLocaleString()} VND
+          <section className="bg-gradient-to-br from-primary-50 to-blue-50 border-2 border-primary-200 rounded-xl p-5 space-y-3">
+            <h4 className="font-semibold text-base text-primary-900 mb-3">Amount</h4>
+            <div className="flex justify-between items-center bg-white rounded-lg p-3 border border-primary-200">
+              <span className="text-gray-600 font-medium">Total Amount</span>
+              <span className="font-bold text-primary-600 text-xl">
+                {(Number(invoice.amount || 0) / 24000).toLocaleString('en-US', { 
+                  style: 'currency', 
+                  currency: 'USD', 
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 0
+                })}
               </span>
             </div>
             {invoice.paidAt && (
@@ -634,10 +680,15 @@ function InvoiceDrawer({ invoice, onClose, paymentStatusMap, onPrint }) {
                     <span className="text-gray-600">Refund Percentage:</span>
                     <span className="font-semibold">{invoice.refundInfo.refundPercentage}%</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Expected Refund Amount:</span>
-                    <span className="font-bold text-green-700">
-                      ${(invoice.refundInfo.refundAmount || 0).toLocaleString()}
+                  <div className="flex justify-between items-center bg-white rounded-lg p-2 border border-yellow-200">
+                    <span className="text-gray-600 font-medium">Expected Refund Amount:</span>
+                    <span className="font-bold text-green-700 text-lg">
+                      {(Number(invoice.refundInfo.refundAmount || 0) / 24000).toLocaleString('en-US', { 
+                        style: 'currency', 
+                        currency: 'USD', 
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0
+                      })}
                     </span>
                   </div>
                   {invoice.refundInfo.cancelDate && (
@@ -671,10 +722,15 @@ function InvoiceDrawer({ invoice, onClose, paymentStatusMap, onPrint }) {
                     <span className="text-gray-600">Refund Percentage:</span>
                     <span className="font-semibold">{invoice.refundInfo.refundPercentage}%</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Refund Amount:</span>
-                    <span className="font-bold text-green-700 text-lg">
-                      ${(invoice.refundInfo.refundAmount || 0).toLocaleString()}
+                  <div className="flex justify-between items-center bg-white rounded-lg p-2 border border-green-200">
+                    <span className="text-gray-600 font-medium">Refund Amount:</span>
+                    <span className="font-bold text-green-700 text-xl">
+                      {(Number(invoice.refundInfo.refundAmount || 0) / 24000).toLocaleString('en-US', { 
+                        style: 'currency', 
+                        currency: 'USD', 
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0
+                      })}
                     </span>
                   </div>
                   {invoice.refundInfo.cancelDate && (

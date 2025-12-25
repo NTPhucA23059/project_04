@@ -257,8 +257,28 @@ export default function CustomerApp() {
 
         {/* ----------- TRANG KHÔNG DÙNG LAYOUT (CHỈ SEARCH) ----------- */}
         <Route path="/search" element={<SearchPage />} />
-        <Route path='/register' element={<Register />} />
-        <Route path='/login' element={<Login />} />
+        
+        {/* ----------- TRANG ĐĂNG NHẬP VÀ ĐĂNG KÝ CÓ LAYOUT ----------- */}
+        <Route
+          path="/register"
+          element={
+            <div className="flex flex-col min-h-screen">
+              <Navigation />
+              <Register />
+              <Footer />
+            </div>
+          }
+        />
+        <Route
+          path="/login"
+          element={
+            <div className="flex flex-col min-h-screen">
+              <Navigation />
+              <Login />
+              <Footer />
+            </div>
+          }
+        />
         <Route path='/forgot-password' element={<ForgotPassword />} />
 
 

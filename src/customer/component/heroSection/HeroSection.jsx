@@ -35,17 +35,17 @@ export default function HeroSection() {
     ];
 
     return (
-        <section className="w-full px-4 lg:px-8 xl:px-16 py-12 lg:py-16 mt-[30px]">
-            <div className="max-w-7xl mx-auto">
+        <section className="w-full px-4 lg:px-8 xl:px-16 py-12 lg:py-16 mt-[10px]">
+            <div className="w-full mx-auto">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
 
                     {/* LEFT LARGE ITEM */}
-                    <div className="relative h-[500px] lg:h-[600px] rounded-2xl overflow-hidden bg-gradient-to-br from-orange-200 via-amber-100 to-yellow-50 category-card shadow-xl hover:shadow-2xl transition-all duration-500 group">
+                    <div className="relative h-[500px] lg:h-[600px] overflow-hidden bg-gradient-to-br from-orange-200 via-amber-100 to-yellow-50 category-card shadow-xl hover:shadow-2xl transition-all duration-500 group">
                         {/* Background Image with Overlay */}
                         <div className="absolute inset-0">
                             <img
                                 src={cat1}
-                                alt="World Travel"
+                                alt="Domestic Travel"
                                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                             />
                             <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent"></div>
@@ -56,14 +56,14 @@ export default function HeroSection() {
                             <div className="max-w-md">
                                 <div className="mb-6">
                                     <span className="inline-block px-4 py-1.5 bg-white/90 backdrop-blur-sm rounded-full text-sm font-semibold text-primary-600 mb-4 shadow-md">
-                                        ✈️ Explore the World
+                                        ✈️ Domestic Travel
                                     </span>
                                 </div>
                                 <h1 className="text-5xl lg:text-6xl font-bold text-neutral-900 mb-4 leading-tight">
-                                    World <span className="text-primary-600">Travel</span>
+                                    Domestic <span className="text-primary-600">Travel</span>
                                 </h1>
                                 <p className="text-neutral-700 text-lg mb-8 leading-relaxed">
-                                    Discover amazing destinations and unforgettable travel experiences around the globe.
+                                    Discover amazing destinations and unforgettable travel experiences within Vietnam.
                                 </p>
                                 <button className="group/btn inline-flex items-center gap-2 px-8 py-4 bg-primary-600 text-white font-semibold rounded-xl hover:bg-primary-700 shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300">
                                     <span>EXPLORE NOW</span>
@@ -80,7 +80,7 @@ export default function HeroSection() {
                         {categories.map((cat, i) => (
                             <div
                                 key={i}
-                                className={`category-card h-[240px] lg:h-[290px] rounded-xl overflow-hidden ${cat.bg} shadow-lg hover:shadow-2xl transition-all duration-500 group cursor-pointer`}
+                                className={`category-card h-[240px] lg:h-[290px] overflow-hidden ${cat.bg} shadow-lg hover:shadow-2xl transition-all duration-500 group cursor-pointer`}
                             >
                                 {/* Background Image */}
                                 <div className="absolute inset-0">

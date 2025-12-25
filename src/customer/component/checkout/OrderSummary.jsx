@@ -1,3 +1,5 @@
+import { formatUSD } from "../../../utils/currency";
+
 export default function OrderSummary({ tour, details, form, orderTotal }) {
     return (
         <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
@@ -19,18 +21,18 @@ export default function OrderSummary({ tour, details, form, orderTotal }) {
                 <div className="border-t pt-4 space-y-2 text-sm">
                     <div className="flex justify-between">
                         <span className="text-gray-600">Adults ({form.CapacityAdult})</span>
-                        <span className="font-medium">${(form.CapacityAdult * details.UnitPrice).toLocaleString()}</span>
+                        <span className="font-medium">{formatUSD(form.CapacityAdult * details.UnitPrice)}</span>
                     </div>
                     {form.CapacityKid > 0 && (
                         <div className="flex justify-between">
                             <span className="text-gray-600">Children ({form.CapacityKid})</span>
-                            <span className="font-medium">${(form.CapacityKid * details.UnitPrice * 0.7).toLocaleString()}</span>
+                            <span className="font-medium">{formatUSD(form.CapacityKid * details.UnitPrice * 0.7)}</span>
                         </div>
                     )}
                     {form.CapacityBaby > 0 && (
                         <div className="flex justify-between">
                             <span className="text-gray-600">Infants ({form.CapacityBaby})</span>
-                            <span className="font-medium">${(form.CapacityBaby * details.UnitPrice * 0.3).toLocaleString()}</span>
+                            <span className="font-medium">{formatUSD(form.CapacityBaby * details.UnitPrice * 0.3)}</span>
                         </div>
                     )}
                 </div>
@@ -40,7 +42,7 @@ export default function OrderSummary({ tour, details, form, orderTotal }) {
                 <div className="flex justify-between items-center mb-2">
                     <span className="text-gray-600">Total</span>
                     <span className="text-2xl font-bold text-primary-600">
-                        ${orderTotal.toLocaleString()}
+                        {formatUSD(orderTotal)}
                     </span>
                 </div>
                 <p className="text-xs text-gray-500">Including taxes and service fees</p>

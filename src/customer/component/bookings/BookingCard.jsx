@@ -4,6 +4,7 @@ import { CalendarIcon, CreditCardIcon, MapPinIcon, CheckCircleIcon } from "@hero
 import api from "../../../services/api";
 import TourReview from "./TourReview";
 import { submitTourReview } from "../../../services/customer/reviewService";
+import { formatUSD } from "../../../utils/currency";
 // Convert relative URL to absolute URL
 const toAbsoluteUrl = (url) => {
     if (!url) return "";
@@ -130,7 +131,7 @@ export default function BookingCard({ booking, status }) {
                         <div className="flex items-center justify-between">
                             <span className="text-gray-500 text-sm">Total Payment:</span>
                             <span className="font-bold text-primary-700 text-xl">
-                                ${booking.OrderTotal.toLocaleString()}
+                                {formatUSD(booking.OrderTotal)}
                             </span>
                         </div>
                     </div>
@@ -219,7 +220,7 @@ export default function BookingCard({ booking, status }) {
                     View Details
                 </Link>
             </div>
-            {status === "Confirmed" && (
+            {status === "Completed" && (
                 <div className="px-6 pb-6">
                     <TourReview
                         bookingID={booking.BookingID}

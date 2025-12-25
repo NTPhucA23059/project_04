@@ -67,6 +67,7 @@ export default function TourManagement() {
 
   const [openModal, setOpenModal] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [configuringTourID, setConfiguringTourID] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [errors, setErrors] = useState({});
 
@@ -198,14 +199,18 @@ export default function TourManagement() {
     }
 
     // Parse duration từ "X days Y nights" thành days và nights
+    // Chỉ lấy days, nights sẽ được tính tự động (days - 1)
     let days = "";
     let nights = "";
     if (t.duration) {
       const durationStr = t.duration.toLowerCase();
       const daysMatch = durationStr.match(/(\d+)\s*days?/);
-      const nightsMatch = durationStr.match(/(\d+)\s*nights?/);
-      if (daysMatch) days = daysMatch[1];
-      if (nightsMatch) nights = nightsMatch[1];
+      if (daysMatch) {
+        days = daysMatch[1];
+        // Tự động tính nights = days - 1
+        const daysNum = Number(daysMatch[1]);
+        nights = daysNum > 0 ? String(daysNum - 1) : "";
+      }
     }
 
     return {
@@ -233,10 +238,13 @@ export default function TourManagement() {
 
     // Tạo duration string từ days và nights
     let durationStr = "";
-    if (f.days || f.nights) {
+    if (f.days || (f.nights !== undefined && f.nights !== null && f.nights !== "")) {
       const parts = [];
-      if (f.days) parts.push(`${f.days} day${f.days > 1 ? 's' : ''}`);
-      if (f.nights) parts.push(`${f.nights} night${f.nights > 1 ? 's' : ''}`);
+      if (f.days) parts.push(`${f.days} day${Number(f.days) > 1 ? 's' : ''}`);
+      // Chỉ thêm nights vào string nếu nights > 0 (không hiển thị "0 nights")
+      if (f.nights && Number(f.nights) > 0) {
+        parts.push(`${f.nights} night${Number(f.nights) > 1 ? 's' : ''}`);
+      }
       durationStr = parts.join(" ");
     }
 
@@ -258,23 +266,44 @@ export default function TourManagement() {
 
   const validate = () => {
     const e = {};
+    
+    // Tour Code validation
     if (!form.tourCode?.trim()) {
-      e.tourCode = "Required";
+      e.tourCode = "Tour code is required";
     } else {
       // Validate tourCode chỉ chứa chữ và số
       if (!/^[a-zA-Z0-9]+$/.test(form.tourCode.trim())) {
         e.tourCode = "Tour code must contain only letters and numbers";
       }
     }
-    if (!form.tourName?.trim()) e.tourName = "Required";
-    if (!form.startingLocation?.trim()) e.startingLocation = "Required";
-    if (!form.categoryID) e.categoryID = "Required";
+    
+    // Tour Name validation
+    if (!form.tourName?.trim()) {
+      e.tourName = "Tour name is required";
+    }
+    
+    // Starting Location validation
+    if (!form.startingLocation?.trim()) {
+      e.startingLocation = "Starting location is required";
+    }
+    
+    // Category validation
+    if (!form.categoryID) {
+      e.categoryID = "Please select a category";
+    }
+    
+    // Duration validation (required because it's needed for cities and departures)
+    if (!form.days || form.days === "") {
+      e.days = "Tour duration (days) is required";
+    }
+    
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
   const handleOpenEdit = async (t) => {
     setEditing(t);
+    setConfiguringTourID(null); // Clear configuringTourID khi edit
     setForm(toForm(t));
     setErrors({});
     setOpenModal(true);
@@ -304,13 +333,35 @@ export default function TourManagement() {
     setSaving(true);
 
     try {
-      if (editing) {
-        await updateTour(editing.tourID, {
+      // Nếu đang edit hoặc configure (tour đã tồn tại), thì update
+      const tourIDToUpdate = editing?.tourID || configuringTourID;
+      if (tourIDToUpdate) {
+        await updateTour(tourIDToUpdate, {
           tour: payload,
           mainImage: form.mainImageFile,
           galleryImages: form.galleryFiles,
         });
         toast.success("Tour updated successfully");
+        
+        // Nếu đang configure, sau khi update thành công thì chuyển sang edit mode
+        if (configuringTourID) {
+          const normalized = normalizeTour({ ...form, tourID: configuringTourID });
+          setEditing(normalized);
+          setConfiguringTourID(null);
+          // Không đóng modal, chỉ chuyển sang edit mode để user tiếp tục config
+          loadTours();
+          loadStats();
+          return; // Return sớm để không đóng modal
+        }
+        
+        // Nếu đang edit bình thường, đóng modal
+        setOpenModal(false);
+        setEditing(null);
+        setForm(emptyForm);
+        setTourCities([]);
+        setTourDetails([]);
+        loadTours();
+        loadStats();
       } else {
         const result = await createTour({
           tour: payload,
@@ -327,15 +378,17 @@ export default function TourManagement() {
             tour: createdTour,
           });
         }
+        
+        // Đóng modal và clear form
+        setOpenModal(false);
+        setEditing(null);
+        setConfiguringTourID(null);
+        setForm(emptyForm);
+        setTourCities([]);
+        setTourDetails([]);
+        loadTours();
+        loadStats();
       }
-
-      setOpenModal(false);
-      setEditing(null);
-      setForm(emptyForm);
-      setTourCities([]);
-      setTourDetails([]);
-      loadTours();
-      loadStats();
     } catch (err) {
       const status = err?.response?.status;
       const backendMsg = err?.response?.data?.message;
@@ -499,6 +552,7 @@ export default function TourManagement() {
           className="bg-gradient-to-r from-primary-600 to-primary-500 text-white px-5 py-2.5 rounded-lg font-semibold shadow-md hover:shadow-lg hover:from-primary-700 hover:to-primary-600 transition-all"
           onClick={() => {
             setEditing(null);
+            setConfiguringTourID(null); // Clear configuringTourID khi add mới
             setForm(emptyForm);
             setErrors({});
             setTourCities([]);
@@ -728,11 +782,15 @@ export default function TourManagement() {
       <TourFormModal
         open={openModal}
         editing={editing}
+        configuringTourID={configuringTourID}
         form={form}
         errors={errors}
         categories={categories}
         saving={saving}
-        onClose={() => setOpenModal(false)}
+        onClose={() => {
+          setOpenModal(false);
+          setConfiguringTourID(null);
+        }}
         onChange={(newForm) => {
           setForm(newForm);
           // Clear tourCode error when user changes the code
@@ -740,6 +798,14 @@ export default function TourManagement() {
             setErrors((prev) => {
               const next = { ...prev };
               delete next.tourCode;
+              return next;
+            });
+          }
+          // Clear days error when user selects days
+          if (errors.days && newForm.days !== form.days && newForm.days) {
+            setErrors((prev) => {
+              const next = { ...prev };
+              delete next.days;
               return next;
             });
           }
@@ -872,8 +938,13 @@ export default function TourManagement() {
           const createdTour = postCreateDialog.tour;
           if (!createdTour?.tourID) return;
 
+          // Đóng dialog trước
+          setPostCreateDialog((prev) => ({ ...prev, isOpen: false }));
+
+          // Không set editing, chỉ set configuringTourID để hiển thị "Configure tour"
           const normalized = normalizeTour(createdTour);
-          setEditing(normalized);
+          setConfiguringTourID(createdTour.tourID);
+          setEditing(null); // Đảm bảo không ở chế độ edit
           setForm(toForm(normalized));
           setErrors({});
           setOpenModal(true);

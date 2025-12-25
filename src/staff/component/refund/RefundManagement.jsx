@@ -20,6 +20,7 @@ export default function RefundManagement() {
     const [statusFilter, setStatusFilter] = useState("ALL");
     const [keyword, setKeyword] = useState("");
     const [selected, setSelected] = useState(null);
+    const [viewMode, setViewMode] = useState("view"); // "view" or "edit"
     const [refunds, setRefunds] = useState([]);
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(0);
@@ -45,7 +46,7 @@ export default function RefundManagement() {
             });
 
             const refundsList = response.items || [];
-            
+
             // Fetch booking details for each refund
             const refundsWithDetails = await Promise.all(
                 refundsList.map(async (refund) => {
@@ -118,7 +119,9 @@ export default function RefundManagement() {
                 !kw ||
                 String(r.refundID).includes(kw) ||
                 String(r.tourBookingID).includes(kw) ||
+                r.customer?.customerName?.toLowerCase().includes(kw) ||
                 r.customer?.name?.toLowerCase().includes(kw) ||
+                r.customer?.customerPhone?.toLowerCase().includes(kw) ||
                 r.customer?.phone?.toLowerCase().includes(kw) ||
                 r.tour?.tourCode?.toLowerCase().includes(kw) ||
                 r.tour?.tourName?.toLowerCase().includes(kw);
@@ -138,50 +141,10 @@ export default function RefundManagement() {
     }, [filtered]);
 
     const handleQuickApprove = async (refund) => {
-        setConfirmDialog({
-            isOpen: true,
-            title: "Chấp nhận hoàn tiền",
-            message: `Bạn có chắc chắn muốn chấp nhận yêu cầu hoàn tiền #${refund.refundID}? Bạn sẽ cần nhập thông tin ngân hàng trong form chi tiết.`,
-            type: "info",
-            onConfirm: () => {
-                setSelected(refund);
-                setConfirmDialog({ ...confirmDialog, isOpen: false });
-            },
-        });
+        setSelected(refund);
     };
 
-    const handleQuickReject = async (refund) => {
-        setConfirmDialog({
-            isOpen: true,
-            title: "Reject Refund",
-            message: `Are you sure you want to reject refund request #${refund.refundID}? This action cannot be undone.`,
-            type: "danger",
-            confirmText: "Reject",
-            cancelText: "Cancel",
-            onConfirm: async () => {
-                try {
-                    const currentUser = getCurrentUser();
-                    const staffID = currentUser?.accountID || null;
 
-                    await updateRefund(refund.refundID, {
-                        refundPercentage: refund.refundPercentage,
-                        refundAmount: refund.refundAmount,
-                        refundReason: refund.refundReason,
-                        refundStatus: 2, // Rejected
-                        processedDate: new Date().toISOString(),
-                        staffID: staffID,
-                    });
-
-                    toast.success("Refund request rejected successfully");
-                    loadRefunds();
-                    setConfirmDialog({ ...confirmDialog, isOpen: false });
-                } catch (err) {
-                    console.error("Error rejecting refund:", err);
-                    toast.error("Error rejecting refund: " + (err.message || "Unknown error"));
-                }
-            },
-        });
-    };
 
     return (
         <div className="space-y-4">
@@ -200,7 +163,7 @@ export default function RefundManagement() {
                 <div className="bg-white border border-neutral-200 rounded-xl p-5 shadow-sm hover:shadow-md transition">
                     <p className="text-xs text-neutral-600 font-medium">Total Amount</p>
                     <p className="text-2xl font-bold mt-2 text-primary-600">
-                        {totals.amount.toLocaleString("vi-VN")} đ
+                        ${totals.amount.toLocaleString("en-US")}
                     </p>
                 </div>
                 <div className="bg-white border border-neutral-200 rounded-xl p-5 shadow-sm hover:shadow-md transition">
@@ -228,7 +191,6 @@ export default function RefundManagement() {
                         }}
                     >
                         <option value="ALL">All statuses</option>
-                        <option value="0">Pending</option>
                         <option value="1">Refunded</option>
                         <option value="2">Rejected</option>
                     </select>
@@ -280,8 +242,8 @@ export default function RefundManagement() {
                                     <td className="px-4 py-3">
                                         {r.customer ? (
                                             <>
-                                                <div className="font-semibold">{r.customer.name || "N/A"}</div>
-                                                <div className="text-xs text-gray-500">{r.customer.phone || "N/A"}</div>
+                                                <div className="font-semibold">{r.customer.customerName || r.customer.name || "N/A"}</div>
+                                                <div className="text-xs text-gray-500">{r.customer.customerPhone || r.customer.phone || "N/A"}</div>
                                             </>
                                         ) : (
                                             <div className="text-xs text-gray-500">Loading...</div>
@@ -289,7 +251,7 @@ export default function RefundManagement() {
                                     </td>
                                     <td className="px-4 py-3">
                                         <div className="font-bold text-primary-600">
-                                            {r.refundAmount ? Number(r.refundAmount).toLocaleString("vi-VN") : 0} đ
+                                            ${r.refundAmount ? Number(r.refundAmount).toLocaleString("en-US") : 0}
                                         </div>
                                         <div className="text-xs text-neutral-500">
                                             {r.refundPercentage || 0}% of paid
@@ -297,10 +259,9 @@ export default function RefundManagement() {
                                     </td>
                                     <td className="px-4 py-3">
                                         <span
-                                            className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                                statusMap[r.refundStatus]?.className ||
+                                            className={`px-2 py-1 rounded-full text-xs font-medium ${statusMap[r.refundStatus]?.className ||
                                                 "bg-neutral-100 text-neutral-700"
-                                            }`}
+                                                }`}
                                         >
                                             {statusMap[r.refundStatus]?.label || "Unknown"}
                                         </span>
@@ -309,7 +270,10 @@ export default function RefundManagement() {
                                         <div className="flex gap-2 items-center">
                                             <button
                                                 className="px-3 py-1.5 rounded-lg bg-primary-600 text-white border border-primary-600 hover:bg-primary-700 shadow-sm transition font-medium text-xs"
-                                                onClick={() => setSelected(r)}
+                                                onClick={() => {
+                                                    setViewMode("view");
+                                                    setSelected(r);
+                                                }}
                                                 title="View Details"
                                             >
                                                 View
@@ -318,18 +282,15 @@ export default function RefundManagement() {
                                                 <>
                                                     <button
                                                         className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white border border-emerald-600 hover:bg-emerald-700 shadow-sm transition font-medium text-xs"
-                                                        onClick={() => handleQuickApprove(r)}
+                                                        onClick={() => {
+                                                            setViewMode("edit");
+                                                            handleQuickApprove(r);
+                                                        }}
                                                         title="Chấp nhận hoàn tiền"
                                                     >
                                                         ✓ Approve
                                                     </button>
-                                                    <button
-                                                        className="px-3 py-1.5 rounded-lg bg-red-600 text-white border border-red-600 hover:bg-red-700 shadow-sm transition font-medium text-xs"
-                                                        onClick={() => handleQuickReject(r)}
-                                                        title="Reject Refund"
-                                                    >
-                                                        ✕ Reject
-                                                    </button>
+
                                                 </>
                                             )}
                                         </div>
@@ -383,7 +344,7 @@ export default function RefundManagement() {
                             >
                                 Previous
                             </button>
-                            
+
                             {/* Page numbers */}
                             {totalPages > 0 && [...Array(Math.min(totalPages, 5))].map((_, i) => {
                                 let pageNum;
@@ -396,22 +357,21 @@ export default function RefundManagement() {
                                 } else {
                                     pageNum = page - 2 + i;
                                 }
-                                
+
                                 return (
                                     <button
                                         key={i}
                                         onClick={() => setPage(pageNum)}
-                                        className={`px-3 py-1.5 rounded-lg border transition ${
-                                            page === pageNum
-                                                ? "bg-primary-600 text-white border-primary-600"
-                                                : "bg-white border-neutral-200 text-neutral-700 hover:bg-primary-50 hover:border-primary-300"
-                                        }`}
+                                        className={`px-3 py-1.5 rounded-lg border transition ${page === pageNum
+                                            ? "bg-primary-600 text-white border-primary-600"
+                                            : "bg-white border-neutral-200 text-neutral-700 hover:bg-primary-50 hover:border-primary-300"
+                                            }`}
                                     >
                                         {pageNum + 1}
                                     </button>
                                 );
                             })}
-                            
+
                             <button
                                 className="px-3 py-1.5 rounded-lg border border-neutral-200 text-neutral-700 disabled:opacity-50 disabled:bg-neutral-100 hover:bg-primary-50 hover:border-primary-300 transition"
                                 disabled={page >= totalPages - 1}
@@ -427,7 +387,11 @@ export default function RefundManagement() {
             {selected && (
                 <RefundDrawer
                     refund={selected}
-                    onClose={() => setSelected(null)}
+                    viewMode={viewMode}
+                    onClose={() => {
+                        setSelected(null);
+                        setViewMode("view");
+                    }}
                     onSave={loadRefunds}
                 />
             )}
@@ -446,7 +410,7 @@ export default function RefundManagement() {
     );
 }
 
-function RefundDrawer({ refund, onClose, onSave }) {
+function RefundDrawer({ refund, viewMode = "view", onClose, onSave }) {
     const [status, setStatus] = useState(refund.refundStatus ?? 0);
     const [note, setNote] = useState("");
     const [bankInfo, setBankInfo] = useState({
@@ -459,7 +423,7 @@ function RefundDrawer({ refund, onClose, onSave }) {
     const [hasBankInfo, setHasBankInfo] = useState(false);
     const [customerInfo, setCustomerInfo] = useState(refund.customer || null);
     const [loadingCustomer, setLoadingCustomer] = useState(!refund.customer);
-    
+
     // Check if refund is already processed (cannot change status)
     const isProcessed = refund.refundStatus === 1 || refund.refundStatus === 2;
 
@@ -475,7 +439,7 @@ function RefundDrawer({ refund, onClose, onSave }) {
                 setLoadingCustomer(true);
                 const bookingData = await getFullBookingById(refund.tourBookingID);
                 console.log("Booking data for customer:", bookingData);
-                
+
                 if (bookingData) {
                     const customer = bookingData.customer || null;
                     console.log("Customer info:", customer);
@@ -498,15 +462,15 @@ function RefundDrawer({ refund, onClose, onSave }) {
             try {
                 setLoadingBankInfo(true);
                 console.log("Loading bank info for refund ID:", refund.refundID);
-                
+
                 const response = await getBankInfoByRefundID(refund.refundID);
                 console.log("Raw bank info response:", response);
                 console.log("Response type:", typeof response);
                 console.log("Is array:", Array.isArray(response));
-                
+
                 // Handle different response formats
                 let bankInfoList = null;
-                
+
                 if (Array.isArray(response)) {
                     // Response is already an array
                     bankInfoList = response;
@@ -523,9 +487,9 @@ function RefundDrawer({ refund, onClose, onSave }) {
                         bankInfoList = [response];
                     }
                 }
-                
+
                 console.log("Processed bank info list:", bankInfoList);
-                
+
                 // Ensure we have an array with data
                 if (Array.isArray(bankInfoList) && bankInfoList.length > 0) {
                     const bankData = bankInfoList[0];
@@ -533,7 +497,7 @@ function RefundDrawer({ refund, onClose, onSave }) {
                     console.log("BankName:", bankData.bankName);
                     console.log("BankAccount:", bankData.bankAccount);
                     console.log("AccountHolder:", bankData.accountHolder);
-                    
+
                     setBankInfo({
                         bankName: bankData.bankName || "",
                         bankAccount: bankData.bankAccount || "",
@@ -691,10 +655,9 @@ function RefundDrawer({ refund, onClose, onSave }) {
                             <div>
                                 <p className="text-xs text-gray-500">Paid Amount</p>
                                 <p className="font-semibold">
-                                    {refund.booking?.orderTotal
-                                        ? Number(refund.booking.orderTotal).toLocaleString("vi-VN")
-                                        : 0}{" "}
-                                    đ
+                                    ${refund.booking?.orderTotal
+                                        ? Number(refund.booking.orderTotal).toLocaleString("en-US")
+                                        : 0}
                                 </p>
                             </div>
                             <div className="text-xs text-gray-500">
@@ -727,7 +690,7 @@ function RefundDrawer({ refund, onClose, onSave }) {
                                     readOnly
                                     disabled
                                 />
-                                <p className="text-xs text-gray-500 mt-1">Currency: VND</p>
+                                <p className="text-xs text-gray-500 mt-1">Currency: USD</p>
                             </div>
                         </div>
 
@@ -803,9 +766,9 @@ function RefundDrawer({ refund, onClose, onSave }) {
                                 </div>
                             </div>
                         ) : (
-                            // Form nhập thông tin ngân hàng mới (chỉ hiện khi duyệt)
+                            // Form nhập thông tin ngân hàng mới (chỉ hiện khi duyệt và chưa được xử lý và ở chế độ edit)
                             <div className="grid grid-cols-1 gap-3">
-                                {status === 1 ? (
+                                {viewMode === "edit" && !isProcessed && status === 1 ? (
                                     <>
                                         <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded">
                                             Please enter bank information to approve refund
@@ -819,6 +782,7 @@ function RefundDrawer({ refund, onClose, onSave }) {
                                                 value={bankInfo.bankName}
                                                 onChange={(e) => setBankInfo({ ...bankInfo, bankName: e.target.value })}
                                                 placeholder="Bank Name"
+                                                disabled={isProcessed}
                                             />
                                         </div>
                                         <div className="grid grid-cols-2 gap-3">
@@ -831,6 +795,7 @@ function RefundDrawer({ refund, onClose, onSave }) {
                                                     value={bankInfo.bankAccount}
                                                     onChange={(e) => setBankInfo({ ...bankInfo, bankAccount: e.target.value })}
                                                     placeholder="Account Number"
+                                                    disabled={isProcessed}
                                                 />
                                             </div>
                                             <div>
@@ -842,6 +807,7 @@ function RefundDrawer({ refund, onClose, onSave }) {
                                                     value={bankInfo.accountHolder}
                                                     onChange={(e) => setBankInfo({ ...bankInfo, accountHolder: e.target.value })}
                                                     placeholder="Account Holder"
+                                                    disabled={isProcessed}
                                                 />
                                             </div>
                                         </div>
@@ -853,59 +819,98 @@ function RefundDrawer({ refund, onClose, onSave }) {
                                                 value={note}
                                                 onChange={(e) => setNote(e.target.value)}
                                                 placeholder="Note (optional)"
+                                                disabled={isProcessed}
                                             />
                                         </div>
                                     </>
+                                ) : isProcessed ? (
+                                    <div className="p-3 bg-gray-50 border border-gray-200 rounded">
+                                        <p className="text-xs text-gray-600">
+                                            This refund has been processed. Bank information cannot be modified.
+                                        </p>
+                                    </div>
                                 ) : (
                                     <p className="text-xs text-gray-500 italic">
-                                        Bank information will be required when approving refund
+                                        {viewMode === "view" 
+                                            ? "No bank information available" 
+                                            : "Bank information will be required when approving refund"}
                                     </p>
                                 )}
                             </div>
                         )}
                     </section>
 
-                    <section className="bg-gray-50 border rounded-xl p-4 space-y-3">
-                        <h4 className="font-semibold text-sm">Processing Status</h4>
-                        <div className="flex gap-2 flex-wrap">
-                            {[0, 1, 2].map((s) => (
-                                <button
-                                    key={s}
-                                    className={`px-4 py-2 rounded-lg text-sm font-medium border transition ${
-                                        status === s
+                    {viewMode === "edit" ? (
+                        <section className="bg-gray-50 border rounded-xl p-4 space-y-3">
+                            <div className="flex items-center justify-between">
+                                <h4 className="font-semibold text-sm">Processing Status</h4>
+                                {isProcessed && (
+                                    <span className="text-xs text-gray-500 italic">Read-only (Already processed)</span>
+                                )}
+                            </div>
+                            <div className="flex gap-2 flex-wrap">
+                                {[1, 2].map((s) => (
+                                    <button
+                                        key={s}
+                                        className={`px-4 py-2 rounded-lg text-sm font-medium border transition ${status === s
                                             ? s === 1
                                                 ? "bg-emerald-600 text-white border-emerald-600"
-                                                : s === 2
-                                                ? "bg-red-600 text-white border-red-600"
-                                                : "bg-amber-600 text-white border-amber-600"
+                                                : "bg-red-600 text-white border-red-600"
                                             : isProcessed
-                                            ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
-                                            : "bg-white text-gray-700 hover:bg-gray-100 border-gray-300"
-                                    }`}
-                                    onClick={() => !isProcessed && setStatus(s)}
-                                    disabled={isProcessed}
-                                >
-                                    {statusMap[s].label}
-                                </button>
-                            ))}
-                        </div>
-                        <div className="mt-2 p-2 rounded bg-blue-50 border border-blue-200">
-                            <p className="text-xs text-blue-800">
-                                {status === 1 && "✓ Approved: Refund will be processed and transferred to bank account"}
-                                {status === 2 && "✕ Rejected: Refund request has been rejected, customer will be notified"}
-                                {status === 0 && "⏳ Pending: Waiting for staff to process refund request"}
-                            </p>
-                        </div>
-                        {(refund.refundStatus === 1 || refund.refundStatus === 2) && (
-                            <div className="mt-2 p-2 rounded bg-gray-100 border border-gray-300">
-                                <p className="text-xs text-gray-600">
-                                    {refund.processedDate
-                                        ? `Processed: ${new Date(refund.processedDate).toLocaleString("en-US")}`
-                                        : "No processing information"}
+                                                ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                                                : "bg-white text-gray-700 hover:bg-gray-100 border-gray-300"
+                                            }`}
+                                        onClick={() => !isProcessed && setStatus(s)}
+                                        disabled={isProcessed}
+                                        title={isProcessed ? "Cannot change status - refund already processed" : ""}
+                                    >
+                                        {statusMap[s].label}
+                                    </button>
+                                ))}
+                            </div>
+                            <div className="mt-2 p-2 rounded bg-blue-50 border border-blue-200">
+                                <p className="text-xs text-blue-800">
+                                    {status === 1 && "✓ Approved: Refund will be processed and transferred to bank account"}
+                                    {status === 2 && "✕ Rejected: Refund request has been rejected, customer will be notified"}
                                 </p>
                             </div>
-                        )}
-                    </section>
+                            {(refund.refundStatus === 1 || refund.refundStatus === 2) && (
+                                <div className="mt-2 p-2 rounded bg-gray-100 border border-gray-300">
+                                    <p className="text-xs text-gray-600">
+                                        {refund.processedDate
+                                            ? `Processed: ${new Date(refund.processedDate).toLocaleString("en-US")}`
+                                            : "No processing information"}
+                                    </p>
+                                </div>
+                            )}
+                        </section>
+                    ) : (
+                        <section className="bg-gray-50 border rounded-xl p-4 space-y-3">
+                            <h4 className="font-semibold text-sm">Processing Status</h4>
+                            <div className="flex gap-2 flex-wrap">
+                                <span
+                                    className={`px-4 py-2 rounded-lg text-sm font-medium border ${
+                                        refund.refundStatus === 1
+                                            ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+                                            : refund.refundStatus === 2
+                                            ? "bg-red-100 text-red-700 border-red-200"
+                                            : "bg-amber-100 text-amber-800 border-amber-200"
+                                    }`}
+                                >
+                                    {statusMap[refund.refundStatus]?.label || "Unknown"}
+                                </span>
+                            </div>
+                            {(refund.refundStatus === 1 || refund.refundStatus === 2) && (
+                                <div className="mt-2 p-2 rounded bg-gray-100 border border-gray-300">
+                                    <p className="text-xs text-gray-600">
+                                        {refund.processedDate
+                                            ? `Processed: ${new Date(refund.processedDate).toLocaleString("en-US")}`
+                                            : "No processing information"}
+                                    </p>
+                                </div>
+                            )}
+                        </section>
+                    )}
                 </div>
 
                 <div className="p-4 border-t flex gap-3 justify-end">
@@ -916,30 +921,31 @@ function RefundDrawer({ refund, onClose, onSave }) {
                     >
                         Close
                     </button>
-                    {!isProcessed ? (
-                        <button
-                            className={`px-4 py-2 rounded text-white hover:opacity-90 disabled:opacity-50 transition ${
-                                status === 1
+                    {viewMode === "edit" && (
+                        !isProcessed ? (
+                            <button
+                                className={`px-4 py-2 rounded text-white hover:opacity-90 disabled:opacity-50 transition ${status === 1
                                     ? "bg-emerald-600"
                                     : status === 2
-                                    ? "bg-red-600"
-                                    : "bg-gray-600"
-                            }`}
-                            onClick={handleSave}
-                            disabled={saving}
-                        >
-                            {saving
-                                ? "Processing..."
-                                : status === 1
-                                ? "Approve Refund"
-                                : status === 2
-                                ? "Reject"
-                                : "Update"}
-                        </button>
-                    ) : (
-                        <div className="px-4 py-2 rounded bg-gray-200 text-gray-600 text-sm">
-                            Processed - Cannot Change
-                        </div>
+                                        ? "bg-red-600"
+                                        : "bg-gray-600"
+                                    }`}
+                                onClick={handleSave}
+                                disabled={saving}
+                            >
+                                {saving
+                                    ? "Processing..."
+                                    : status === 1
+                                        ? "Approve Refund"
+                                        : status === 2
+                                            ? "Reject"
+                                            : "Update"}
+                            </button>
+                        ) : (
+                            <div className="px-4 py-2 rounded bg-gray-200 text-gray-600 text-sm">
+                                Processed - Cannot Change
+                            </div>
+                        )
                     )}
                 </div>
             </div>

@@ -4,6 +4,7 @@ import { getAllSeasons } from "../../../services/staff/seasonStaffService";
 export default function TourDetailsSection({
   tourID,
   tourDetails,
+  tourDuration = null,
   onAdd,
   onUpdate,
   onDelete,
@@ -20,6 +21,7 @@ export default function TourDetailsSection({
     seasonID: "",
   });
   const [seasons, setSeasons] = React.useState([]);
+  const [errors, setErrors] = React.useState({});
 
   React.useEffect(() => {
     getAllSeasons()
@@ -30,15 +32,125 @@ export default function TourDetailsSection({
       .catch(() => setSeasons([]));
   }, []);
 
+  const getTodayDate = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today.toISOString().split("T")[0];
+  };
+
+  const getMinDepartureDate = () => {
+    const minDate = new Date();
+    minDate.setHours(0, 0, 0, 0);
+    minDate.setDate(minDate.getDate() + 5); // Thêm 5 ngày
+    return minDate.toISOString().split("T")[0];
+  };
+
+  const calculateArrivalDate = (departureDate, duration) => {
+    if (!departureDate || !duration || duration <= 0) return "";
+
+    const departure = new Date(departureDate);
+    if (isNaN(departure.getTime())) return "";
+
+    const arrival = new Date(departure);
+    arrival.setDate(arrival.getDate() + duration - 1); 
+
+    return arrival.toISOString().split("T")[0];
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+
+    if (!form.departureDate) {
+      newErrors.departureDate = "Departure date is required";
+    } else {
+      const departure = new Date(form.departureDate);
+      const minDate = new Date(getMinDepartureDate());
+      const today = new Date(getTodayDate());
+
+      if (departure < today) {
+        newErrors.departureDate = "Departure date cannot be in the past";
+      }
+      else if (departure < minDate) {
+        const daysFromToday = Math.ceil((departure - today) / (1000 * 60 * 60 * 24));
+        newErrors.departureDate = `Departure date must be at least 5 days from today. Selected date is only ${daysFromToday} day(s) away.`;
+      }
+    }
+
+    if (!form.arrivalDate) {
+      newErrors.arrivalDate = "Arrival date is required";
+    } else if (form.departureDate) {
+      const departure = new Date(form.departureDate);
+      const arrival = new Date(form.arrivalDate);
+
+      if (arrival < departure) {
+        newErrors.arrivalDate = "Arrival date cannot be before departure date";
+      }
+
+      // Chỉ validate arrival date với tour duration nếu không có tourDuration (vì nếu có tourDuration thì đã auto-calculate rồi)
+      if (!tourDuration && form.departureDate) {
+        // Có thể thêm validation khác nếu cần
+      }
+    }
+
+    // Validate Number of Guests
+    if (form.numberOfGuests) {
+      const numGuests = Number(form.numberOfGuests);
+      if (isNaN(numGuests) || numGuests < 1) {
+        newErrors.numberOfGuests = "Number of guests must be at least 1";
+      }
+    }
+
+    // Validate Minimum Number of Guests
+    if (form.minimumNumberOfGuests) {
+      const minGuests = Number(form.minimumNumberOfGuests);
+      if (isNaN(minGuests) || minGuests < 1) {
+        newErrors.minimumNumberOfGuests = "Minimum guests must be at least 1";
+      } else if (form.numberOfGuests) {
+        const numGuests = Number(form.numberOfGuests);
+        if (numGuests > 0 && minGuests > numGuests) {
+          newErrors.minimumNumberOfGuests = "Minimum guests cannot exceed number of guests";
+        }
+      }
+    }
+
+    // Validate Unit Price
+    if (!form.unitPrice) {
+      newErrors.unitPrice = "Unit price is required";
+    } else {
+      const price = Number(form.unitPrice);
+      if (isNaN(price) || price <= 0) {
+        newErrors.unitPrice = "Unit price must be greater than 0";
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleDepartureDateChange = (value) => {
+    setErrors({ ...errors, departureDate: "" });
+
+    if (tourDuration && tourDuration > 0 && value) {
+      const calculatedArrival = calculateArrivalDate(value, tourDuration);
+      setForm({
+        ...form,
+        departureDate: value,
+        arrivalDate: calculatedArrival,
+      });
+    } else {
+      setForm({ ...form, departureDate: value });
+    }
+  };
+
   const handleAdd = () => {
-    if (!form.departureDate || !form.arrivalDate || !form.unitPrice) {
-      alert("Please fill required fields");
+    if (!validateForm()) {
       return;
     }
+
     onAdd(tourID, {
       ...form,
-      numberOfGuests: Number(form.numberOfGuests),
-      minimumNumberOfGuests: Number(form.minimumNumberOfGuests),
+      numberOfGuests: Number(form.numberOfGuests) || null,
+      minimumNumberOfGuests: Number(form.minimumNumberOfGuests) || null,
       unitPrice: Number(form.unitPrice),
       status: Number(form.status),
       seasonID: form.seasonID ? Number(form.seasonID) : null,
@@ -52,6 +164,7 @@ export default function TourDetailsSection({
       status: 1,
       seasonID: "",
     });
+    setErrors({});
     setShowAddForm(false);
   };
 
@@ -70,17 +183,18 @@ export default function TourDetailsSection({
       status: detail.status ?? 1,
       seasonID: detail.seasonID || "",
     });
+    setErrors({});
   };
 
   const handleSaveUpdate = () => {
-    if (!form.departureDate || !form.arrivalDate || !form.unitPrice) {
-      alert("Please fill required fields");
+    if (!validateForm()) {
       return;
     }
+
     onUpdate(editingID, {
       ...form,
-      numberOfGuests: Number(form.numberOfGuests),
-      minimumNumberOfGuests: Number(form.minimumNumberOfGuests),
+      numberOfGuests: Number(form.numberOfGuests) || null,
+      minimumNumberOfGuests: Number(form.minimumNumberOfGuests) || null,
       unitPrice: Number(form.unitPrice),
       status: Number(form.status),
       seasonID: form.seasonID ? Number(form.seasonID) : null,
@@ -95,6 +209,7 @@ export default function TourDetailsSection({
       status: 1,
       seasonID: "",
     });
+    setErrors({});
   };
 
   return (
@@ -111,71 +226,128 @@ export default function TourDetailsSection({
         )}
       </div>
 
+      {/* Tour duration info */}
+      {tourDuration && (
+        <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="text-xs text-blue-800">
+            <span className="font-medium">Tour Duration:</span> {tourDuration} days
+            {" • "}
+            <span className="text-xs">Arrival date will be calculated automatically</span>
+          </div>
+        </div>
+      )}
+
       {/* Add/Edit Form */}
       {(showAddForm || editingID) && (
         <div className="mb-4 p-3 border border-primary-200 rounded-lg bg-primary-50">
           <div className="grid grid-cols-2 gap-3 mb-3">
             <div>
-              <label className="text-xs text-neutral-500">Departure Date</label>
+              <label className="text-xs text-neutral-500">
+                Departure Date <span className="text-red-500">*</span>
+              </label>
               <input
                 type="date"
-                className="w-full border border-neutral-200 px-2 py-1.5 rounded text-sm"
+                min={getMinDepartureDate()}
+                className={`w-full border px-2 py-1.5 rounded text-sm ${
+                  errors.departureDate ? "border-red-500" : "border-neutral-200"
+                }`}
                 value={form.departureDate}
-                onChange={(e) =>
-                  setForm({ ...form, departureDate: e.target.value })
-                }
+                onChange={(e) => handleDepartureDateChange(e.target.value)}
               />
+              {errors.departureDate && (
+                <p className="text-xs text-red-500 mt-1">{errors.departureDate}</p>
+              )}
+              <p className="text-xs text-neutral-400 mt-1">
+                Must be at least 5 days from today
+              </p>
             </div>
             <div>
-              <label className="text-xs text-neutral-500">Arrival Date</label>
+              <label className="text-xs text-neutral-500">
+                Arrival Date <span className="text-red-500">*</span>
+            
+              </label>
               <input
                 type="date"
-                className="w-full border border-neutral-200 px-2 py-1.5 rounded text-sm"
+                min={form.departureDate || getTodayDate()}
+                className={`w-full border px-2 py-1.5 rounded text-sm ${
+                  tourDuration ? "bg-neutral-100 cursor-not-allowed" : ""
+                } ${errors.arrivalDate ? "border-red-500" : "border-neutral-200"}`}
                 value={form.arrivalDate}
-                onChange={(e) =>
-                  setForm({ ...form, arrivalDate: e.target.value })
-                }
+                onChange={(e) => {
+                  if (!tourDuration) {
+                    setForm({ ...form, arrivalDate: e.target.value });
+                    setErrors({ ...errors, arrivalDate: "" });
+                  }
+                }}
+                disabled={!!tourDuration}
+                title={tourDuration ? "Arrival date is automatically calculated from departure date + tour duration" : ""}
               />
+              {errors.arrivalDate && (
+                <p className="text-xs text-red-500 mt-1">{errors.arrivalDate}</p>
+              )}
             </div>
             <div>
               <label className="text-xs text-neutral-500">Number of Guests</label>
               <input
                 type="number"
                 min="1"
-                className="w-full border border-neutral-200 px-2 py-1.5 rounded text-sm"
+                className={`w-full border px-2 py-1.5 rounded text-sm ${
+                  errors.numberOfGuests ? "border-red-500" : "border-neutral-200"
+                }`}
                 value={form.numberOfGuests}
-                onChange={(e) =>
-                  setForm({ ...form, numberOfGuests: e.target.value })
-                }
+                onChange={(e) => {
+                  setForm({ ...form, numberOfGuests: e.target.value });
+                  setErrors({ ...errors, numberOfGuests: "" });
+                }}
+                placeholder="Optional"
               />
+              {errors.numberOfGuests && (
+                <p className="text-xs text-red-500 mt-1">{errors.numberOfGuests}</p>
+              )}
             </div>
             <div>
               <label className="text-xs text-neutral-500">Min Guests</label>
               <input
                 type="number"
                 min="1"
-                className="w-full border border-neutral-200 px-2 py-1.5 rounded text-sm"
+                className={`w-full border px-2 py-1.5 rounded text-sm ${
+                  errors.minimumNumberOfGuests ? "border-red-500" : "border-neutral-200"
+                }`}
                 value={form.minimumNumberOfGuests}
-                onChange={(e) =>
+                onChange={(e) => {
                   setForm({
                     ...form,
                     minimumNumberOfGuests: e.target.value,
-                  })
-                }
+                  });
+                  setErrors({ ...errors, minimumNumberOfGuests: "" });
+                }}
+                placeholder="Optional"
               />
+              {errors.minimumNumberOfGuests && (
+                <p className="text-xs text-red-500 mt-1">{errors.minimumNumberOfGuests}</p>
+              )}
             </div>
             <div>
-              <label className="text-xs text-neutral-500">Unit Price</label>
+              <label className="text-xs text-neutral-500">
+                Unit Price <span className="text-red-500">*</span>
+              </label>
               <input
                 type="number"
-                min="0"
+                min="0.01"
                 step="0.01"
-                className="w-full border border-neutral-200 px-2 py-1.5 rounded text-sm"
+                className={`w-full border px-2 py-1.5 rounded text-sm ${
+                  errors.unitPrice ? "border-red-500" : "border-neutral-200"
+                }`}
                 value={form.unitPrice}
-                onChange={(e) =>
-                  setForm({ ...form, unitPrice: e.target.value })
-                }
+                onChange={(e) => {
+                  setForm({ ...form, unitPrice: e.target.value });
+                  setErrors({ ...errors, unitPrice: "" });
+                }}
+                placeholder="0.00"
               />
+              {errors.unitPrice && (
+                <p className="text-xs text-red-500 mt-1">{errors.unitPrice}</p>
+              )}
             </div>
             <div>
               <label className="text-xs text-neutral-500">Season</label>
@@ -233,6 +405,7 @@ export default function TourDetailsSection({
                   status: 1,
                   seasonID: "",
                 });
+                setErrors({});
               }}
               className="px-3 py-1.5 bg-neutral-200 text-neutral-700 rounded text-sm hover:bg-neutral-300"
             >
@@ -302,4 +475,3 @@ export default function TourDetailsSection({
     </div>
   );
 }
-

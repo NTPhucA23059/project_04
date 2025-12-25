@@ -31,6 +31,7 @@ export default function TourSchedulesPage() {
   const [selectedScheduleForItems, setSelectedScheduleForItems] = useState(null);
 
   const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, schedule: null, error: null, deleting: false });
+  const [deleteItemConfirm, setDeleteItemConfirm] = useState({ isOpen: false, item: null, schedule: null, error: null, deleting: false });
 
   // Load tours on mount
   useEffect(() => {
@@ -208,6 +209,51 @@ export default function TourSchedulesPage() {
     }
   };
 
+  const handleOpenAddSchedule = () => {
+    // Calculate next day number
+    const maxDay = schedules.length > 0
+      ? Math.max(...schedules.map(s => s.dayNumber || s.DayNumber || 0))
+      : 0;
+    const nextDayNumber = maxDay + 1;
+
+    // Validate before opening modal
+    if (nextDayNumber > 1) {
+      // Find previous day schedule
+      const previousDaySchedule = schedules.find(
+        (s) => (s.dayNumber || s.DayNumber) === nextDayNumber - 1
+      );
+      
+      if (!previousDaySchedule) {
+        toast.error(`Cannot create Day ${nextDayNumber}. Please create Day ${nextDayNumber - 1} first. Days must be created sequentially.`);
+        return;
+      }
+
+      // Check if previous day has at least one activity
+      const previousDayItems = previousDaySchedule.items || previousDaySchedule.Items || [];
+      if (previousDayItems.length === 0) {
+        toast.error(`Cannot create Day ${nextDayNumber}. Day ${nextDayNumber - 1} must have at least one activity before creating the next day.`);
+        return;
+      }
+    }
+
+    // Check if next day exceeds actual tour days
+    if (selectedTourDetail?.departureDate && selectedTourDetail?.arrivalDate) {
+      const departure = new Date(selectedTourDetail.departureDate);
+      const arrival = new Date(selectedTourDetail.arrivalDate);
+      const diffTime = arrival - departure;
+      const actualTourDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      
+      if (nextDayNumber > actualTourDays) {
+        toast.error(`Day number cannot exceed actual tour duration (${actualTourDays} days from departure to arrival).`);
+        return;
+      }
+    }
+
+    // All validations passed, open modal
+    setEditingSchedule(null);
+    setOpenScheduleModal(true);
+  };
+
   const handleOpenEditSchedule = (schedule) => {
     setEditingSchedule(schedule);
     setOpenScheduleModal(true);
@@ -289,54 +335,57 @@ export default function TourSchedulesPage() {
   };
 
   const handleDeleteItem = (item, schedule) => {
-    setConfirmDialog({
-      isOpen: true,
-      title: "Confirm Delete",
-      message: "Are you sure you want to delete this activity?",
-      onConfirm: async () => {
-        const scheduleID = schedule.scheduleID || schedule.ScheduleID;
-        const currentItems = schedule.items || schedule.Items || [];
-        const itemID = item.itemID || item.ItemID;
-        const updatedItems = currentItems.filter(
-          (i) => (i.itemID || i.ItemID) !== itemID
-        );
+    setDeleteItemConfirm({ isOpen: true, item: item, schedule: schedule, error: null, deleting: false });
+  };
 
-        const updatePayload = {
-          dayNumber: schedule.dayNumber || schedule.DayNumber,
-          title: schedule.title || schedule.Title || null,
-          summary: schedule.summary || schedule.Summary || null,
-          notes: schedule.notes || schedule.Notes || null,
-          items: updatedItems,
-        };
+  const confirmDeleteItem = async () => {
+    if (!deleteItemConfirm.item || !deleteItemConfirm.schedule || deleteItemConfirm.deleting) return;
 
-        try {
-          await updateTourSchedule(scheduleID, updatePayload);
-          toast.success("Activity deleted successfully");
-          setConfirmDialog({ ...confirmDialog, isOpen: false });
-          if (selectedTourDetail?.tourDetailID) {
-            await loadSchedules(selectedTourDetail.tourDetailID);
-          }
-        } catch (err) {
-          console.error("Failed to delete item:", err);
-          
-          // Get backend message
-          let backendMsg = err?.response?.data?.message || err?.response?.data?.error || err?.message || "";
-          
-          // Convert to user-friendly message
-          let userFriendlyMsg = "";
-          
-          if (backendMsg.toLowerCase().includes("not found")) {
-            userFriendlyMsg = "Schedule or activity not found. Please refresh the page and try again.";
-          } else if (backendMsg) {
-            userFriendlyMsg = "Unable to delete activity. Please try again later or contact support if the problem persists.";
-          } else {
-            userFriendlyMsg = "Unable to delete activity. Please check your connection and try again.";
-          }
+    try {
+      setDeleteItemConfirm(prev => ({ ...prev, deleting: true, error: null }));
+      const schedule = deleteItemConfirm.schedule;
+      const item = deleteItemConfirm.item;
+      const scheduleID = schedule.scheduleID || schedule.ScheduleID;
+      const currentItems = schedule.items || schedule.Items || [];
+      const itemID = item.itemID || item.ItemID;
+      const updatedItems = currentItems.filter(
+        (i) => (i.itemID || i.ItemID) !== itemID
+      );
 
-          toast.error(userFriendlyMsg);
-        }
-      },
-    });
+      const updatePayload = {
+        dayNumber: schedule.dayNumber || schedule.DayNumber,
+        title: schedule.title || schedule.Title || null,
+        summary: schedule.summary || schedule.Summary || null,
+        notes: schedule.notes || schedule.Notes || null,
+        items: updatedItems,
+      };
+
+      await updateTourSchedule(scheduleID, updatePayload);
+      toast.success("Activity deleted successfully");
+      setDeleteItemConfirm({ isOpen: false, item: null, schedule: null, error: null, deleting: false });
+      if (selectedTourDetail?.tourDetailID) {
+        await loadSchedules(selectedTourDetail.tourDetailID);
+      }
+    } catch (err) {
+      console.error("Failed to delete item:", err);
+      
+      // Get backend message
+      let backendMsg = err?.response?.data?.message || err?.response?.data?.error || err?.message || "";
+      
+      // Convert to user-friendly message
+      let userFriendlyMsg = "";
+      
+      if (backendMsg.toLowerCase().includes("not found")) {
+        userFriendlyMsg = "Schedule or activity not found. Please refresh the page and try again.";
+      } else if (backendMsg) {
+        userFriendlyMsg = "Unable to delete activity. Please try again later or contact support if the problem persists.";
+      } else {
+        userFriendlyMsg = "Unable to delete activity. Please check your connection and try again.";
+      }
+
+      setDeleteItemConfirm(prev => ({ ...prev, error: userFriendlyMsg, deleting: false }));
+      toast.error(userFriendlyMsg);
+    }
   };
 
   // Sort schedules by dayNumber
@@ -439,10 +488,7 @@ export default function TourSchedulesPage() {
               3. Daily Schedule
             </h3>
             <button
-              onClick={() => {
-                setEditingSchedule(null);
-                setOpenScheduleModal(true);
-              }}
+              onClick={handleOpenAddSchedule}
               className="px-4 py-2 bg-gradient-to-r from-primary-600 to-primary-500 text-white rounded-lg hover:from-primary-700 hover:to-primary-600 transition font-medium text-sm"
             >
               + Add Day
@@ -538,6 +584,18 @@ export default function TourSchedulesPage() {
         initial={editingSchedule}
         tourDetailID={selectedTourDetail?.tourDetailID}
         existingSchedules={schedules}
+        actualTourDays={(() => {
+          // Calculate actual days from departure date to arrival date
+          if (selectedTourDetail?.departureDate && selectedTourDetail?.arrivalDate) {
+            const departure = new Date(selectedTourDetail.departureDate);
+            const arrival = new Date(selectedTourDetail.arrivalDate);
+            const diffTime = arrival - departure;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include both start and end days
+            return diffDays > 0 ? diffDays : null;
+          }
+          return null;
+        })()}
+        departureDate={selectedTourDetail?.departureDate || null}
       />
 
       <ScheduleItemFormModal
@@ -554,7 +612,7 @@ export default function TourSchedulesPage() {
         allowedCityIDs={tourCities.map(c => c.cityID || c.CityID).filter(Boolean)}
       />
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Schedule Confirmation Dialog */}
       {deleteConfirm.isOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full transform transition-all border border-gray-200/50">
@@ -625,6 +683,76 @@ export default function TourSchedulesPage() {
                   }`}
                 >
                   {deleteConfirm.deleting ? "Deleting..." : "Delete"}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Item Confirmation Dialog */}
+      {deleteItemConfirm.isOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full transform transition-all border border-gray-200/50">
+            <div className="p-6">
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0 bg-red-100 rounded-full p-3">
+                  <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    Delete Activity
+                  </h3>
+                  {deleteItemConfirm.error ? (
+                    <div className="space-y-3">
+                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                        <div className="flex items-start gap-3">
+                          <div className="flex-shrink-0">
+                            <svg className="h-6 w-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold text-amber-900 mb-2">
+                              Cannot Delete This Activity
+                            </p>
+                            <p className="text-sm text-amber-800 leading-relaxed">
+                              {deleteItemConfirm.error}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="text-sm text-gray-600">
+                        Are you sure you want to delete this activity? This action cannot be undone.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-b-xl flex justify-end gap-3">
+              <button
+                onClick={() => setDeleteItemConfirm({ isOpen: false, item: null, schedule: null, error: null, deleting: false })}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition shadow-sm"
+              >
+                {deleteItemConfirm.error ? "Close" : "Cancel"}
+              </button>
+              {!deleteItemConfirm.error && (
+                <button
+                  onClick={confirmDeleteItem}
+                  disabled={deleteItemConfirm.deleting}
+                  className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition shadow-md ${
+                    deleteItemConfirm.deleting
+                      ? 'bg-red-400 cursor-not-allowed'
+                      : 'bg-red-600 hover:bg-red-700'
+                  }`}
+                >
+                  {deleteItemConfirm.deleting ? "Deleting..." : "Delete"}
                 </button>
               )}
             </div>

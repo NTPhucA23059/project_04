@@ -65,17 +65,43 @@ export const exportInvoicePdf = async (id) => {
     const res = await api.get(`${BASE}/${id}/pdf`, {
       responseType: 'blob', // Important for binary data
     });
+    
+    // Check if response is actually a PDF
+    if (res.data instanceof Blob) {
+      // Check content type
+      const contentType = res.headers['content-type'] || res.headers['Content-Type'];
+      if (contentType && contentType.includes('application/json')) {
+        // Backend returned JSON error as blob
+        const text = await res.data.text();
+        try {
+          const json = JSON.parse(text);
+          throw new Error(json.error || json.message || "Failed to export PDF");
+        } catch (parseError) {
+          throw new Error("Failed to export PDF: Invalid response from server");
+        }
+      }
+      return res.data;
+    }
+    
     return res.data;
   } catch (error) {
     // If error response is blob (JSON error from backend), try to parse it
     if (error.response && error.response.data instanceof Blob) {
       try {
         const text = await error.response.data.text();
-        const json = JSON.parse(text);
-        const errorMessage = json.error || json.message || "Failed to export PDF";
-        throw new Error(errorMessage);
-      } catch (parseError) {
-        // If parsing fails, it might be a real PDF error or other issue
+        try {
+          const json = JSON.parse(text);
+          const errorMessage = json.error || json.message || "Failed to export PDF";
+          throw new Error(errorMessage);
+        } catch (parseError) {
+          // If parsing fails, check content type
+          const contentType = error.response.headers['content-type'] || error.response.headers['Content-Type'];
+          if (contentType && contentType.includes('application/json')) {
+            throw new Error("Failed to export PDF: " + text);
+          }
+          throw new Error("Failed to export PDF: Invalid response format");
+        }
+      } catch (blobError) {
         throw new Error(error.response?.status === 400 
           ? "Bad request. Invoice may not exist or PDF generation failed." 
           : error.message || "Failed to export PDF");

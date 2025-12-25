@@ -13,6 +13,7 @@ import {
 } from "@heroicons/react/24/outline";
 import StaffTourBookingPage from "./StaffTourBookingPage";
 import * as bookingService from "../../../services/staff/bookingStaffService";
+import * as invoiceService from "../../../services/staff/invoiceStaffService";
 import { toast } from "../../shared/toast/toast";
 import { useConfirm } from "../../shared/confirm/useConfirm";
 import ConfirmDialog from "../../shared/confirm/ConfirmDialog";
@@ -184,29 +185,65 @@ export default function BookingManagement() {
         }
     };
 
-    const handleExportInvoice = (booking) => {
+    const handleExportInvoice = async (booking) => {
         if (!booking) return;
-        const content = [
-            "TOUR BOOKING INVOICE",
-            `Booking ID: ${booking.bookingID}`,
-            `Order Code: ${booking.orderCode || "N/A"}`,
-            `Tour Detail ID: ${booking.tourDetailID}`,
-            `Payment Method: ${booking.paymentMethod}`,
-            `Payment Status: ${getPaymentStatusText(booking.paymentStatus)}`,
-            `Order Status: ${getOrderStatusText(booking.orderStatus)}`,
-            `Total Amount: ${(booking.orderTotal || 0).toLocaleString()} VND`,
-            `Guests: ${(booking.adultCount || 0)} Adult(s), ${(booking.childCount || 0)} Child(ren), ${(booking.infantCount || 0)} Infant(s)`,
-            `Created At: ${new Date(booking.createdAt).toLocaleString()}`,
-            `Expires At: ${booking.expireAt ? new Date(booking.expireAt).toLocaleString() : "N/A"}`,
-        ].join("\n");
-
-        const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `invoice-${booking.bookingID}.txt`;
-        a.click();
-        URL.revokeObjectURL(url);
+        
+        try {
+            // Search for invoice by bookingID
+            const invoiceResult = await invoiceService.searchInvoices({
+                page: 0,
+                size: 1,
+                bookingID: booking.bookingID,
+            });
+            
+            const invoices = invoiceResult?.items || [];
+            if (invoices.length === 0) {
+                toast.error("Invoice not found for this booking. Please ensure the booking has been paid.");
+                return;
+            }
+            
+            const invoice = invoices[0];
+            
+            // Export PDF
+            const blob = await invoiceService.exportInvoicePdf(invoice.invoiceID);
+            
+            // Check if blob is actually a PDF (not an error JSON)
+            if (blob && blob instanceof Blob) {
+                // Check if it's a PDF by size (PDF should have some content) or type
+                if (blob.size === 0) {
+                    throw new Error("Empty PDF file received from server");
+                }
+                
+                // If blob has a type and it's not PDF, it might be JSON error
+                if (blob.type && blob.type !== "application/pdf" && blob.type.includes("json")) {
+                    const text = await blob.text();
+                    try {
+                        const json = JSON.parse(text);
+                        throw new Error(json.error || json.message || "Failed to export PDF");
+                    } catch (parseError) {
+                        throw new Error("Invalid PDF response from server");
+                    }
+                }
+            } else {
+                throw new Error("Invalid response: Expected PDF blob");
+            }
+            
+            // Create download link
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.setAttribute("download", `Invoice_Booking_${booking.bookingID}_${invoice.invoiceID}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+            
+            toast.success("Invoice PDF exported successfully");
+        } catch (err) {
+            console.error("Export invoice PDF error:", err);
+            const errorMessage = err?.message || err?.response?.data?.error || "Failed to export invoice PDF";
+            toast.error(errorMessage);
+        }
     };
 
     return (
@@ -258,7 +295,7 @@ export default function BookingManagement() {
                         <div className="bg-white border border-neutral-200 rounded-xl p-5 shadow-sm hover:shadow-md transition">
                             <p className="text-xs text-neutral-600 font-medium">Total Revenue</p>
                             <p className="text-2xl font-bold mt-2 text-primary-600">
-                                ${(totals.total || 0).toLocaleString()}
+                                {(totals.total || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })}
                             </p>
                         </div>
                         <div className="bg-white border border-neutral-200 rounded-xl p-5 shadow-sm hover:shadow-md transition">
@@ -370,7 +407,7 @@ export default function BookingManagement() {
                                                 </td>
                                                 <td className="px-4 py-3 whitespace-nowrap">
                                                     <div className="font-semibold text-green-700">
-                                                        ${(b.orderTotal || 0).toLocaleString()}
+                                                        {(b.orderTotal || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })}
                                                     </div>
                                                 </td>
                                                 <td className="px-4 py-3 whitespace-nowrap">
@@ -640,11 +677,11 @@ function BookingDetailModal({ booking, onClose, onUpdatePaymentStatus, updatingP
                             </div>
                             <div>
                                 <p className="text-xs text-gray-500">Unit Price</p>
-                                <p className="font-medium">${(bookingData.unitPrice || 0).toLocaleString()}</p>
+                                <p className="font-medium">{(bookingData.unitPrice || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })}</p>
                             </div>
                             <div>
                                 <p className="text-xs text-gray-500">Total Amount</p>
-                                <p className="font-medium text-green-700">${(bookingData.orderTotal || 0).toLocaleString()}</p>
+                                <p className="font-medium text-green-700">{(bookingData.orderTotal || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })}</p>
                             </div>
                             <div>
                                 <p className="text-xs text-gray-500">Created At</p>

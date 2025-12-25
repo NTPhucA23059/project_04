@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import api from "../../../services/api";
 import { fetchTourCategories, fetchTours } from "../../../services/customer/tourService";
+import { formatUSD } from "../../../utils/currency";
 const toAbsoluteUrl = (url) => {
   if (!url) return "";
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
@@ -206,7 +207,7 @@ export default function TourListPageVN({ tours = [] }) {
                       <div className="mt-4 flex justify-between items-center">
                         <p className="text-xl font-bold text-red-600">
                           {tour.price
-                            ? `$${Number(tour.price).toLocaleString()}`
+                            ? formatUSD(Number(tour.price))
                             : "Contact for price"}
                         </p>
 

@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { getCurrentUser } from "../../../services/common/authService";
-import { fetchBookingsByAccount, fetchBookingFull } from "../../../services/customer/bookingService";
+import { fetchBookingsByAccount, fetchBookingFull, fetchBookingStatusCounts } from "../../../services/customer/bookingService";
 import BookingCard from "./BookingCard";
 import { FunnelIcon, ArrowsUpDownIcon } from "@heroicons/react/24/outline";
 import api from "../../../services/api";
@@ -14,14 +14,56 @@ const toAbsoluteUrl = (url) => {
     return `${base}/${url.replace(/^\/+/, "")}`;
 };
 
+const ITEMS_PER_PAGE = 10;
+
 export default function MyBookingsPage() {
     const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [filterStatus, setFilterStatus] = useState("All");
     const [sortBy, setSortBy] = useState("upcoming");
+    const [page, setPage] = useState(0);
+    const [totalPages, setTotalPages] = useState(0);
+    const [total, setTotal] = useState(0);
+    const [statusCounts, setStatusCounts] = useState({
+        All: 0,
+        "Pending Processing": 0,
+        "Confirmed": 0,
+        "On-going": 0,
+        "Completed": 0,
+        "Auto Cancelled": 0,
+        "Refunded": 0,
+    });
 
     const now = Date.now();
+
+    // Load status counts separately
+    useEffect(() => {
+        const loadStatusCounts = async () => {
+            const user = getCurrentUser();
+            const accountID = user?.accountID || user?.AccountID;
+            if (!accountID) return;
+
+            try {
+                const counts = await fetchBookingStatusCounts(accountID);
+                // Map backend status numbers to display status names
+                const mappedCounts = {
+                    All: (counts[0] || 0) + (counts[1] || 0) + (counts[2] || 0) + (counts[3] || 0) + (counts[4] || 0) + (counts[5] || 0),
+                    "Pending Processing": counts[0] || 0,
+                    "Confirmed": counts[1] || 0,
+                    "On-going": counts[2] || 0,
+                    "Completed": counts[3] || 0,
+                    "Auto Cancelled": counts[4] || 0,
+                    "Refunded": counts[5] || 0,
+                };
+                setStatusCounts(mappedCounts);
+                setTotal(mappedCounts.All);
+            } catch (err) {
+                console.error("Error loading status counts:", err);
+            }
+        };
+        loadStatusCounts();
+    }, []);
 
     useEffect(() => {
         const load = async () => {
@@ -34,8 +76,24 @@ export default function MyBookingsPage() {
             setLoading(true);
             setError("");
             try {
-                const res = await fetchBookingsByAccount({ page: 0, size: 20, accountID });
+                // Convert filter status to orderStatus number for backend filtering
+                const statusNumber = filterStatus !== "All" ? getStatusNumber(filterStatus) : null;
+                
+                const res = await fetchBookingsByAccount({ 
+                    page, 
+                    size: ITEMS_PER_PAGE, 
+                    accountID,
+                    status: statusNumber 
+                });
                 const items = res.items || [];
+                // When filtering, use res.total (filtered total). When "All", use statusCounts.All
+                if (filterStatus === "All") {
+                    setTotal(statusCounts.All || res.total || 0);
+                } else {
+                    setTotal(res.total || 0);
+                }
+                setTotalPages(res.totalPages || 0);
+
                 // Get full info for each booking to have tour/tourDetail
                 const fullList = await Promise.all(
                     items.map(async (b) => {
@@ -55,7 +113,7 @@ export default function MyBookingsPage() {
             }
         };
         load();
-    }, []);
+    }, [page, filterStatus]);
 
     const mapBasicToUI = (b) => ({
         bookingID: b.bookingID,
@@ -123,17 +181,22 @@ export default function MyBookingsPage() {
         }
     };
 
-    // Filter and sort bookings
-    const filteredAndSortedBookings = useMemo(() => {
-        let result = [...bookings];
+    // Map display status to orderStatus number for backend filtering
+    const getStatusNumber = (statusText) => {
+        const statusMap = {
+            "Pending Processing": 0,
+            "Confirmed": 1,
+            "On-going": 2,
+            "Completed": 3,
+            "Auto Cancelled": 4,
+            "Refunded": 5,
+        };
+        return statusMap[statusText] !== undefined ? statusMap[statusText] : null;
+    };
 
-        // Filter by status
-        if (filterStatus !== "All") {
-            result = result.filter((b) => {
-                const status = getStatus(b);
-                return status === filterStatus;
-            });
-        }
+    // Sort bookings (filtering is now done by backend)
+    const sortedBookings = useMemo(() => {
+        let result = [...bookings];
 
         // Sort
         result.sort((a, b) => {
@@ -166,26 +229,10 @@ export default function MyBookingsPage() {
         });
 
         return result;
-    }, [bookings, filterStatus, sortBy]);
+    }, [bookings, sortBy]);
 
-    const statusCounts = useMemo(() => {
-        const counts = {
-            All: bookings.length,
-            "Pending Processing": 0,
-            "Confirmed": 0,
-            "On-going": 0,
-            "Completed": 0,
-            "Auto Cancelled": 0,
-            "Refunded": 0,
-        };
-        bookings.forEach((b) => {
-            const status = getStatus(b);
-            if (counts[status] !== undefined) {
-                counts[status]++;
-            }
-        });
-        return counts;
-    }, [bookings]);
+    // Status counts are now loaded from backend separately
+    // No need to calculate from current page bookings
 
     return (
         <div className="min-h-screen bg-gray-50 pt-24 pb-12">
@@ -195,7 +242,12 @@ export default function MyBookingsPage() {
                         My Bookings
                     </h1>
                     <div className="text-sm text-gray-600">
-                        Total: <span className="font-semibold">{bookings.length}</span> bookings
+                        Total: <span className="font-semibold">{total}</span> bookings
+                        {totalPages > 1 && (
+                            <span className="ml-2 text-xs text-gray-500">
+                                (Page {page + 1} of {totalPages})
+                            </span>
+                        )}
                     </div>
                 </div>
 
@@ -225,7 +277,10 @@ export default function MyBookingsPage() {
                                 {["All", "Pending Processing", "Confirmed", "On-going", "Completed", "Auto Cancelled", "Refunded"].map((status) => (
                                     <button
                                         key={status}
-                                        onClick={() => setFilterStatus(status)}
+                                        onClick={() => {
+                                            setFilterStatus(status);
+                                            setPage(0); // Reset to first page when filter changes
+                                        }}
                                         className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
                                             filterStatus === status
                                                 ? "bg-primary-600 text-white"
@@ -246,7 +301,10 @@ export default function MyBookingsPage() {
                             </label>
                             <select
                                 value={sortBy}
-                                onChange={(e) => setSortBy(e.target.value)}
+                                onChange={(e) => {
+                                    setSortBy(e.target.value);
+                                    setPage(0); // Reset to first page when sort changes
+                                }}
                                 className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                             >
                                 <option value="upcoming">Upcoming First</option>
@@ -292,7 +350,7 @@ export default function MyBookingsPage() {
                     </div>
                 )}
 
-                {!loading && !error && bookings.length > 0 && filteredAndSortedBookings.length === 0 && (
+                {!loading && !error && bookings.length === 0 && filterStatus !== "All" && (
                     <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
                         <p className="text-gray-500 text-lg">
                             No bookings found with status "{filterStatus}".
@@ -307,11 +365,75 @@ export default function MyBookingsPage() {
                 )}
 
                 <div className="space-y-8">
-                    {filteredAndSortedBookings.map((b) => {
+                    {sortedBookings.map((b) => {
                         const status = getStatus(b);
                         return <BookingCard key={b.bookingID || b.BookingID} booking={b} status={status} />;
                     })}
                 </div>
+
+                {/* Pagination */}
+                {!loading && !error && totalPages > 1 && (
+                    <div className="mt-8 flex justify-center items-center gap-4">
+                        <button
+                            onClick={() => setPage((p) => Math.max(0, p - 1))}
+                            disabled={page === 0}
+                            className={`px-4 py-2 rounded-lg border transition ${
+                                page === 0
+                                    ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                                    : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                            }`}
+                        >
+                            Previous
+                        </button>
+
+                        <div className="flex items-center gap-2">
+                            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                let pageNum;
+                                if (totalPages <= 5) {
+                                    pageNum = i;
+                                } else if (page < 3) {
+                                    pageNum = i;
+                                } else if (page > totalPages - 4) {
+                                    pageNum = totalPages - 5 + i;
+                                } else {
+                                    pageNum = page - 2 + i;
+                                }
+
+                                return (
+                                    <button
+                                        key={pageNum}
+                                        onClick={() => setPage(pageNum)}
+                                        className={`w-10 h-10 rounded-lg border transition ${
+                                            page === pageNum
+                                                ? "bg-primary-600 text-white border-primary-600"
+                                                : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                                        }`}
+                                    >
+                                        {pageNum + 1}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        <button
+                            onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                            disabled={page >= totalPages - 1}
+                            className={`px-4 py-2 rounded-lg border transition ${
+                                page >= totalPages - 1
+                                    ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                                    : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                            }`}
+                        >
+                            Next
+                        </button>
+                    </div>
+                )}
+
+                {!loading && !error && totalPages > 1 && (
+                    <div className="mt-4 text-center text-sm text-gray-500">
+                        Showing {page * ITEMS_PER_PAGE + 1} to {Math.min((page + 1) * ITEMS_PER_PAGE, total)} of {total} bookings
+                    </div>
+                )}
             </div>
         </div>
     );

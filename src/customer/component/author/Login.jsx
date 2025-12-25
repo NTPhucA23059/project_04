@@ -119,7 +119,7 @@ export default function Login() {
         "focus:outline-none placeholder:text-neutral-500 transition";
 
     return (
-        <div className="relative min-h-screen flex items-center justify-center px-4 py-12 overflow-hidden">
+        <div className="relative flex-1 flex items-center justify-center px-4 py-12 overflow-hidden pt-20">
 
             {/* TOAST */}
             {toast && (

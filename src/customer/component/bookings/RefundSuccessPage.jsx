@@ -1,5 +1,6 @@
 import { useLocation, Link } from "react-router-dom";
 import { CheckCircleIcon, ClockIcon, InformationCircleIcon } from "@heroicons/react/24/solid";
+import { formatUSD } from "../../../utils/currency";
 
 export default function RefundSuccessPage() {
     const { state } = useLocation();
@@ -91,7 +92,7 @@ export default function RefundSuccessPage() {
                             <div>
                                 <p className="text-gray-500 mb-1">Refund Amount</p>
                                 <p className="font-semibold text-green-700 text-lg">
-                                    ${(refund.refundAmount || refund.RefundAmount || 0).toLocaleString()}
+                                    {formatUSD(refund.refundAmount || refund.RefundAmount || 0)}
                                 </p>
                             </div>
                             <div>

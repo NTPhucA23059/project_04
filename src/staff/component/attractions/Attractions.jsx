@@ -148,9 +148,7 @@ export default function Attractions() {
   }, [search, selectedCity, pageSize, statusFilter]);
 
   useEffect(() => {
-    if (cities.length > 0) {
-      loadData();
-    }
+    loadData();
   }, [search, selectedCity, pageSize, currentPage, statusFilter]);
 
   useEffect(() => {
@@ -334,7 +332,8 @@ export default function Attractions() {
   // Pagination calculation - backend đã phân trang rồi
   const startIndex = (currentPage - 1) * pageSize;
   const endIndex = Math.min(startIndex + pageSize, totalItems);
-  const pageData = sortedAttractions; // Backend đã trả về đúng page rồi
+  // Backend đã trả về đúng page rồi, không cần sort lại vì sẽ gây duplicate
+  const pageData = attractions;
 
 
   // ============================

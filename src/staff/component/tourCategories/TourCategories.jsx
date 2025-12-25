@@ -212,6 +212,8 @@ export default function TourCategories() {
       } else {
         await createTourCategory(payload);
         toast.success("Category created successfully");
+        // Reset to page 1 to show the newly created category (which will be first)
+        setCurrentPage(1);
       }
       setModalOpen(false);
       setEditingItem(null);

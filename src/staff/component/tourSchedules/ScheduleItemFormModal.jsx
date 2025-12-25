@@ -81,23 +81,146 @@ export default function ScheduleItemFormModal({
     setErrors({});
   }, [initial, open, existingItems]);
 
+  // Helper function to parse timeInfo to comparable value (minutes from midnight)
+  const parseTimeToMinutes = (timeInfo) => {
+    if (!timeInfo || timeInfo.trim() === "") return null;
+
+    // Handle text-based time slots
+    const textSlots = {
+      "Morning": 360,      // 6:00 AM
+      "Afternoon": 780,    // 1:00 PM
+      "Evening": 1080,     // 6:00 PM
+      "Night": 1320,       // 10:00 PM
+      "Full Day": 0,       // Start of day
+    };
+    
+    if (textSlots[timeInfo] !== undefined) {
+      return textSlots[timeInfo];
+    }
+
+    // Handle time range format "HH:mm - HH:mm"
+    const match = timeInfo.match(/(\d{2}):(\d{2})\s*-\s*(\d{2}):(\d{2})/);
+    if (match) {
+      const startHour = parseInt(match[1], 10);
+      const startMin = parseInt(match[2], 10);
+      return startHour * 60 + startMin; // Convert to minutes from midnight
+    }
+
+    return null;
+  };
+
   // ============================
   // VALIDATION
   // ============================
   const validate = () => {
     const e = {};
 
+    // Activity validation (required)
     if (!form.activity || form.activity.trim() === "") {
       e.activity = "Activity is required";
+    } else if (form.activity.trim().length < 3) {
+      e.activity = "Activity must be at least 3 characters";
+    } else if (form.activity.trim().length > 500) {
+      e.activity = "Activity must not exceed 500 characters";
     }
 
+    // Sort Order validation
     if (!form.sortOrder || form.sortOrder === "") {
       e.sortOrder = "Sort order is required";
     } else {
       const order = Number(form.sortOrder);
       if (isNaN(order) || order < 1) {
         e.sortOrder = "Sort order must be positive";
+      } else {
+        // Check duplicate sortOrder (skip current item when editing)
+        if (existingItems && existingItems.length > 0) {
+          const initialItemID = initial?.itemID || initial?.ItemID;
+          const duplicateOrder = existingItems.some(
+            (item) => {
+              const itemID = item.itemID || item.ItemID;
+              // Skip current item when editing
+              return itemID !== initialItemID && (item.sortOrder || item.SortOrder) === order;
+            }
+          );
+          if (duplicateOrder) {
+            e.sortOrder = `Sort order ${order} already exists. Please choose a different order.`;
+          }
+        }
       }
+    }
+
+    // Time Info validation (required)
+    if (!form.timeInfo || form.timeInfo.trim() === "") {
+      e.timeInfo = "Time slot is required";
+    } else {
+      const currentTimeInfo = form.timeInfo.trim();
+
+      // Check duplicate timeInfo
+      if (existingItems && existingItems.length > 0) {
+        const initialItemID = initial?.itemID || initial?.ItemID;
+        const duplicateTime = existingItems.some(
+          (item) => {
+            const itemID = item.itemID || item.ItemID;
+            // Skip current item when editing
+            const itemTimeInfo = (item.timeInfo || item.TimeInfo || "").trim();
+            return itemID !== initialItemID && itemTimeInfo === currentTimeInfo && itemTimeInfo !== "";
+          }
+        );
+        if (duplicateTime) {
+          e.timeInfo = `Time slot "${currentTimeInfo}" already exists. Please choose a different time slot.`;
+        } else {
+          // Check time order: giờ sau phải lớn hơn giờ trước
+          const currentTimeMinutes = parseTimeToMinutes(currentTimeInfo);
+          const currentOrder = Number(form.sortOrder);
+
+          if (currentTimeMinutes !== null) {
+            // Check if there's an item with lower sortOrder that has later time
+            const hasEarlierOrderWithLaterTime = existingItems.some((item) => {
+              const itemID = item.itemID || item.ItemID;
+              if (itemID === initialItemID) return false; // Skip current item when editing
+
+              const itemOrder = Number(item.sortOrder || item.SortOrder);
+              const itemTimeInfo = (item.timeInfo || item.TimeInfo || "").trim();
+              const itemTimeMinutes = parseTimeToMinutes(itemTimeInfo);
+
+              if (itemTimeMinutes === null) return false; // Skip items without timeInfo
+
+              // If item has lower sortOrder but later time, it's invalid
+              return itemOrder < currentOrder && itemTimeMinutes > currentTimeMinutes;
+            });
+
+            if (hasEarlierOrderWithLaterTime) {
+              e.timeInfo = "Time slot must be in chronological order. Earlier activities must have earlier times.";
+            } else {
+              // Check if there's an item with higher sortOrder that has earlier time
+              const hasLaterOrderWithEarlierTime = existingItems.some((item) => {
+                const itemID = item.itemID || item.ItemID;
+                if (itemID === initialItemID) return false; // Skip current item when editing
+
+                const itemOrder = Number(item.sortOrder || item.SortOrder);
+                const itemTimeInfo = (item.timeInfo || item.TimeInfo || "").trim();
+                const itemTimeMinutes = parseTimeToMinutes(itemTimeInfo);
+
+                if (itemTimeMinutes === null) return false; // Skip items without timeInfo
+
+                // If item has higher sortOrder but earlier time, it's invalid
+                return itemOrder > currentOrder && itemTimeMinutes < currentTimeMinutes;
+              });
+
+              if (hasLaterOrderWithEarlierTime) {
+                e.timeInfo = "Time slot must be in chronological order. Later activities must have later times.";
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Transportation validation (required)
+    if (!form.transportation || form.transportation.trim() === "") {
+      e.transportation = "Transportation is required";
+    } else if (form.transportation.trim().length > 100) {
+      e.transportation = "Transportation must not exceed 100 characters";
     }
 
     setErrors(e);
@@ -108,9 +231,9 @@ export default function ScheduleItemFormModal({
     if (!validate()) return;
     
     const payload = {
-      timeInfo: form.timeInfo?.trim() || null,
+      timeInfo: form.timeInfo.trim(),
       activity: form.activity.trim(),
-      transportation: form.transportation?.trim() || null,
+      transportation: form.transportation.trim(),
       sortOrder: Number(form.sortOrder),
       attractionID: form.attractionID || null,
     };
@@ -151,14 +274,24 @@ export default function ScheduleItemFormModal({
           {/* Time Info */}
           <div>
             <label className="block text-sm font-medium text-neutral-700 mb-1.5">
-              Time Slot
+              Time Slot <span className="text-red-500">*</span>
             </label>
             <select
               className={`w-full border rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary-200 focus:border-primary-500 outline-none transition ${
                 errors.timeInfo ? "border-red-500" : "border-neutral-200"
               }`}
               value={form.timeInfo}
-              onChange={(e) => setForm({ ...form, timeInfo: e.target.value })}
+              onChange={(e) => {
+                setForm({ ...form, timeInfo: e.target.value });
+                // Clear error when user changes time
+                if (errors.timeInfo) {
+                  setErrors((prev) => {
+                    const next = { ...prev };
+                    delete next.timeInfo;
+                    return next;
+                  });
+                }
+              }}
             >
               <option value="">-- Select time slot --</option>
               <option value="05:00 - 07:00">05:00 - 07:00</option>
@@ -200,7 +333,17 @@ export default function ScheduleItemFormModal({
                 errors.activity ? "border-red-500" : "border-neutral-200"
               }`}
               value={form.activity}
-              onChange={(e) => setForm({ ...form, activity: e.target.value })}
+              onChange={(e) => {
+                setForm({ ...form, activity: e.target.value });
+                // Clear error when user types
+                if (errors.activity) {
+                  setErrors((prev) => {
+                    const next = { ...prev };
+                    delete next.activity;
+                    return next;
+                  });
+                }
+              }}
               placeholder="Describe the activity in detail..."
             />
             {errors.activity && (
@@ -211,15 +354,26 @@ export default function ScheduleItemFormModal({
           {/* Transportation */}
           <div>
             <label className="block text-sm font-medium text-neutral-700 mb-1.5">
-              Transportation
+              Transportation <span className="text-red-500">*</span>
             </label>
             <input
               className={`w-full border rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary-200 focus:border-primary-500 outline-none transition ${
                 errors.transportation ? "border-red-500" : "border-neutral-200"
               }`}
               value={form.transportation}
-              onChange={(e) => setForm({ ...form, transportation: e.target.value })}
+              onChange={(e) => {
+                setForm({ ...form, transportation: e.target.value });
+                // Clear error when user types
+                if (errors.transportation) {
+                  setErrors((prev) => {
+                    const next = { ...prev };
+                    delete next.transportation;
+                    return next;
+                  });
+                }
+              }}
               placeholder="e.g., Bus, Train, Plane, Walking..."
+              maxLength={100}
             />
             {errors.transportation && (
               <p className="text-red-600 text-xs mt-1">{errors.transportation}</p>

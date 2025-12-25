@@ -5,6 +5,7 @@ import TourDetailsSection from "./TourDetailsSection";
 export default function TourFormModal({
   open,
   editing,
+  configuringTourID = null,
   form,
   errors,
   categories,
@@ -26,16 +27,21 @@ export default function TourFormModal({
 }) {
   if (!open) return null;
 
+  // Xác định tourID để hiển thị sections (ưu tiên configuringTourID, sau đó là editing.tourID)
+  const activeTourID = configuringTourID || (editing && editing.tourID) || null;
+  const isConfiguring = !!configuringTourID;
+  const isEditing = !!editing && !isConfiguring;
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
       <div className="bg-white rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
         <div className="bg-primary-600 text-white px-6 py-4 flex items-center justify-between">
           <div>
             <p className="text-xs uppercase tracking-wide opacity-90">
-              {editing ? "Update tour" : "Create tour"}
+              {isEditing ? "Update tour" : isConfiguring ? "Configure tour" : "Create tour"}
             </p>
             <h3 className="text-lg font-semibold">
-              {editing ? `Editing ${form.tourCode || "tour"}` : "Add new tour"}
+              {isEditing ? `Editing ${form.tourCode || "tour"}` : isConfiguring ? `Add new ${form.tourCode || "tour"}` : "Add new tour"}
             </h3>
           </div>
           <button
@@ -59,12 +65,10 @@ export default function TourFormModal({
                       TOUR-
                     </span>
                     <input
-                      className={`flex-1 border px-3 py-2 rounded-r-lg focus:ring-2 focus:ring-primary-500 ${
-                        errors.tourCode ? "border-red-500" : "border-neutral-200"
-                      }`}
+                      className={`flex-1 border px-3 py-2 rounded-r-lg focus:ring-2 focus:ring-primary-500 ${errors.tourCode ? "border-red-500" : "border-neutral-200"
+                        }`}
                       value={form.tourCode}
                       onChange={(e) => {
-                        // Chỉ cho phép nhập chữ, số, không có ký tự đặc biệt
                         const value = e.target.value.replace(/[^a-zA-Z0-9]/g, '');
                         onChange({ ...form, tourCode: value });
                       }}
@@ -80,9 +84,8 @@ export default function TourFormModal({
                 <div>
                   <label className="text-xs text-neutral-500">Tour Name</label>
                   <input
-                    className={`w-full border px-3 py-2 rounded-lg mt-1 focus:ring-2 focus:ring-primary-500 ${
-                      errors.tourName ? "border-red-500" : "border-neutral-200"
-                    }`}
+                    className={`w-full border px-3 py-2 rounded-lg mt-1 focus:ring-2 focus:ring-primary-500 ${errors.tourName ? "border-red-500" : "border-neutral-200"
+                      }`}
                     value={form.tourName}
                     onChange={(e) =>
                       onChange({ ...form, tourName: e.target.value })
@@ -110,18 +113,26 @@ export default function TourFormModal({
                   </div>
                   <div>
                     <label className="text-xs text-neutral-500">
-                      Duration
+                      Duration <span className="text-red-500">*</span>
                     </label>
                     <div className="grid grid-cols-2 gap-2 mt-1">
                       <div>
                         <select
-                          className="w-full border border-neutral-200 px-3 py-2 rounded-lg focus:ring-2 focus:ring-primary-500"
+                          className={`w-full border px-3 py-2 rounded-lg focus:ring-2 focus:ring-primary-500 ${
+                            errors.days ? "border-red-500" : "border-neutral-200"
+                          }`}
                           value={form.days || ""}
-                          onChange={(e) =>
-                            onChange({ ...form, days: e.target.value })
-                          }
+                          onChange={(e) => {
+                            const selectedDays = e.target.value ? Number(e.target.value) : "";
+                            const calculatedNights = selectedDays ? String(Math.max(0, selectedDays - 1)) : "";
+                            onChange({
+                              ...form,
+                              days: selectedDays,
+                              nights: calculatedNights
+                            });
+                          }}
                         >
-                          <option value="">Days</option>
+                          <option value="">Select days *</option>
                           {Array.from({ length: 30 }, (_, i) => i + 1).map((num) => (
                             <option key={num} value={num}>
                               {num} {num === 1 ? "day" : "days"}
@@ -131,13 +142,13 @@ export default function TourFormModal({
                       </div>
                       <div>
                         <select
-                          className="w-full border border-neutral-200 px-3 py-2 rounded-lg focus:ring-2 focus:ring-primary-500"
-                          value={form.nights || ""}
-                          onChange={(e) =>
-                            onChange({ ...form, nights: e.target.value })
-                          }
+                          className="w-full border border-neutral-200 px-3 py-2 rounded-lg bg-neutral-50 text-neutral-600 cursor-not-allowed"
+                          value={form.nights !== undefined && form.nights !== null && form.nights !== "" ? String(form.nights) : ""}
+                          disabled
+                          title="Nights are automatically calculated (Days - 1)"
                         >
-                          <option value="">Nights</option>
+                          <option value="">--</option>
+                          <option value="0">0 nights</option>
                           {Array.from({ length: 30 }, (_, i) => i + 1).map((num) => (
                             <option key={num} value={num}>
                               {num} {num === 1 ? "night" : "nights"}
@@ -146,6 +157,14 @@ export default function TourFormModal({
                         </select>
                       </div>
                     </div>
+                    {errors.days && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {errors.days}
+                      </p>
+                    )}
+                    <p className="text-xs text-neutral-400 mt-1">
+                      Select days first, nights will be calculated automatically
+                    </p>
                   </div>
                 </div>
                 <div>
@@ -153,11 +172,10 @@ export default function TourFormModal({
                     Starting Location <span className="text-red-500">*</span>
                   </label>
                   <input
-                    className={`w-full border px-3 py-2 rounded-lg mt-1 focus:ring-2 focus:ring-primary-500 ${
-                      errors.startingLocation
+                    className={`w-full border px-3 py-2 rounded-lg mt-1 focus:ring-2 focus:ring-primary-500 ${errors.startingLocation
                         ? "border-red-500"
                         : "border-neutral-200"
-                    }`}
+                      }`}
                     value={form.startingLocation}
                     onChange={(e) =>
                       onChange({
@@ -176,11 +194,10 @@ export default function TourFormModal({
                 <div>
                   <label className="text-xs text-neutral-500">Category</label>
                   <select
-                    className={`w-full border px-3 py-2 rounded-lg mt-1 focus:ring-2 focus:ring-primary-500 ${
-                      errors.categoryID
+                    className={`w-full border px-3 py-2 rounded-lg mt-1 focus:ring-2 focus:ring-primary-500 ${errors.categoryID
                         ? "border-red-500"
                         : "border-neutral-200"
-                    }`}
+                      }`}
                     value={form.categoryID}
                     onChange={(e) =>
                       onChange({ ...form, categoryID: e.target.value })
@@ -271,20 +288,22 @@ export default function TourFormModal({
             </div>
           </div>
 
-          {/* Tour Cities & Details - chỉ hiển thị khi đang edit */}
-          {editing && editing.tourID && (
+        
+          {activeTourID && (
             <div className="space-y-4">
               <TourCitiesSection
-                tourID={editing.tourID}
+                tourID={activeTourID}
                 cities={[]}
                 tourCities={tourCities}
+                tourDuration={form.days ? Number(form.days) : null}
                 onAdd={onTourCityAdd}
                 onUpdate={onTourCityUpdate}
                 onDelete={onTourCityDelete}
               />
               <TourDetailsSection
-                tourID={editing.tourID}
+                tourID={activeTourID}
                 tourDetails={tourDetails}
+                tourDuration={form.days ? Number(form.days) : null}
                 onAdd={onTourDetailAdd}
                 onUpdate={onTourDetailUpdate}
                 onDelete={onTourDetailDelete}
@@ -292,8 +311,7 @@ export default function TourFormModal({
             </div>
           )}
 
-          {/* Process hint */}
-          {!editing && (
+          {!isEditing && !isConfiguring && (
             <div className="bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-lg px-4 py-3">
               After creating the tour frame, you can configure route cities and
               departures in the edit mode.

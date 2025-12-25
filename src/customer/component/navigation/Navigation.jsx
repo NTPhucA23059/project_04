@@ -232,7 +232,7 @@ export default function Navigation() {
                                     <img
                                         src={logo}
                                         alt="Logo"
-                                        className="h-14 w-14 rounded-full "
+                                        className="h-20 w-20"
                                     />
                                 </a>
                             </div>

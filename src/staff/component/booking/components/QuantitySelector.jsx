@@ -82,7 +82,7 @@ export default function QuantitySelector({
         <p className="text-neutral-700">
           Total Amount:{" "}
           <span className="text-xl font-bold text-primary-600">
-            ${totalPrice.toLocaleString()}
+            {totalPrice.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })}
           </span>
         </p>
       </div>

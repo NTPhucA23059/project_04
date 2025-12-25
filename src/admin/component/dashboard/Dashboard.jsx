@@ -13,6 +13,7 @@ import {
   ArrowPathIcon,
 } from "@heroicons/react/24/outline";
 import { apiFetch } from "../../../services/admin/client";
+import { formatUSD } from "../../../utils/currency";
 
 export default function Dashboard() {
   const [stats, setStats] = useState({
@@ -87,12 +88,7 @@ export default function Dashboard() {
     }
   };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: "VND",
-    }).format(amount);
-  };
+  // Use formatUSD from utils instead
 
   const formatNumber = (num) => {
     return new Intl.NumberFormat("vi-VN").format(num);
@@ -109,7 +105,7 @@ export default function Dashboard() {
             <p className={`text-3xl font-bold ${color || "text-gray-900"}`}>
               {typeof value === "number"
                 ? label.includes("Revenue") || label.includes("Doanh thu")
-                  ? formatCurrency(value)
+                  ? formatUSD(value)
                   : formatNumber(value)
                 : value}
             </p>
@@ -274,21 +270,21 @@ export default function Dashboard() {
               <ChartBarIcon className="h-8 w-8 text-blue-600 mx-auto mb-2" />
               <p className="text-xs text-gray-600 mb-1">Tour</p>
               <p className="text-xl font-bold text-blue-600">
-                {formatCurrency(stats.tourRevenue || 0)}
+                {formatUSD(stats.tourRevenue || 0)}
               </p>
             </div>
             <div className="text-center p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-lg">
               <TruckIcon className="h-8 w-8 text-green-600 mx-auto mb-2" />
               <p className="text-xs text-gray-600 mb-1">Car Rental</p>
               <p className="text-xl font-bold text-green-600">
-                {formatCurrency(stats.carRevenue || 0)}
+                {formatUSD(stats.carRevenue || 0)}
               </p>
             </div>
             <div className="text-center p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg">
               <BanknotesIcon className="h-8 w-8 text-purple-600 mx-auto mb-2" />
               <p className="text-xs text-gray-600 mb-1">Total</p>
               <p className="text-xl font-bold text-purple-600">
-                {formatCurrency(stats.totalRevenue)}
+                {formatUSD(stats.totalRevenue)}
               </p>
             </div>
           </div>
@@ -368,7 +364,7 @@ export default function Dashboard() {
                   <div className="flex items-center justify-between mt-1">
                     <p className="text-xs text-gray-500">{booking.date}</p>
                     <p className="font-bold text-sm text-gray-900">
-                      {formatCurrency(booking.amount)}
+                      {formatUSD(booking.amount)}
                     </p>
                   </div>
                 </div>

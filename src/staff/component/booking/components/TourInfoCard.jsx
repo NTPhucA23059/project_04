@@ -109,8 +109,8 @@ export default function TourInfoCard({ tour, tourDetails, selectedDetail, onSele
                 </span>
               </p>
               <p className="text-neutral-700">
-                <b className="text-neutral-900">Adult Price:</b> $
-                {parseFloat(selectedDetail.unitPrice || 0).toLocaleString()}
+                <b className="text-neutral-900">Adult Price:</b>{" "}
+                {parseFloat(selectedDetail.unitPrice || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 })}
               </p>
               <p className="text-neutral-700">
                 <b className="text-neutral-900">Child:</b> 70% of adult price /{" "}
